@@ -13,7 +13,7 @@ Aim for **a deeper version of the task, not a bigger one**. Ambition means a hig
 
 Before asking anything, find out what you can yourself: the files and repos involved, the connectors, tools and data that are available, and what a computer can install or run. Don't ask the user for facts you could look up.
 
-Pin down the **executor**: whoever will run the final prompt, and what it can actually do there. That might be this session with tools, or a single-shot chat model with no tools. Every rung of ambition is capped by the executor's real capabilities. A method the executor can't carry out doesn't make the result deeper; it makes the executor invent results.
+Pin down the **executor**: whoever will run the final prompt, and what it can actually do there. That might be this session with tools, or a single-shot chat model with no tools. Count its compute budget too: a model without code execution can't reliably tally hundreds of rows or chain dozens of calculations in one reply. Every rung of ambition is capped by the executor's real capabilities. A method the executor can't carry out doesn't make the result deeper; it makes the executor invent results.
 
 ## 2. Draft the ambition tree
 
@@ -81,6 +81,7 @@ Before showing the prompt to the user, check it against this list and fix every 
 
 - **Contradictions.** A stretch target that clashes with a constraint (200ms load vs. no infra changes). Resolve the clash, or state which side wins.
 - **Feasibility.** Every method, tool, target and check is something the executor can do in this run with this data. Downgrade each one that fails this, or move it to Prerequisites. A demand the executor can only fake is worse than no demand.
+- **Workload.** Add up the work, not just each step. If the whole job is more computation than the executor can finish in one pass (row-by-row tallies, many confidence intervals, power calculations), cut it to the few numbers that drive the decision, have the executor write code the user runs for the rest, or list a code runner as a prerequisite. The answer must fit with room to spare.
 - **Crowding.** The deliverable the user asked for still gets most of the length budget. Verification material, generated datasets, crew sections and appendices can't push it out.
 - **Altitude.** Give heuristics with reasons rather than if/else rules, and pitch each one somewhere between rigid and vague.
 - **No-ops.** Lines the model already follows by default ("be thorough", "double-check everything" on Opus 5). Delete them.
