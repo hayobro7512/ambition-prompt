@@ -13,6 +13,8 @@ Aim for **a deeper version of the task, not a bigger one**. Ambition means a hig
 
 Before asking anything, find out what you can yourself: the files and repos involved, the connectors, tools and data that are available, and what a computer can install or run. Don't ask the user for facts you could look up.
 
+Pin down the **executor**: whoever will run the final prompt, and what it can actually do there. That might be this session with tools, or a single-shot chat model with no tools. Every rung of ambition is capped by the executor's real capabilities. A method the executor can't carry out doesn't make the result deeper; it makes the executor invent results.
+
 ## 2. Draft the ambition tree
 
 Work out where the prompt sits on each axis and what the next step up would be:
@@ -21,11 +23,11 @@ Work out where the prompt sits on each axis and what the next step up would be:
 - **Depth (work like a top expert in the field).**
   - What would a top professional do here that the prompt doesn't ask for?
   - What is the rawest material they'd start from?
-  - Which real tools and methods would they use, such as databases, statistical models or simulations instead of markdown tables?
-  - What unreasonable target can be stated as reasonable, like 200ms instead of 5s?
+  - Which real tools and methods would they use, such as databases, statistical models or simulations instead of markdown tables? Keep only the ones the executor can actually run on the data it has. Anything stronger becomes a prerequisite for the user to grant, not a demand in the prompt.
+  - What unreasonable target can be stated as reasonable, like 200ms instead of 5s? It must be reachable by real work with the executor's tools and data. A target that can only be met by inventing numbers (a p-value, an AUC, a benchmark the executor can't run) produces fabrication, not depth.
   - Which belief should be tested against raw data?
   - What new knowledge could come out, such as a signal or prediction checked on data the model hasn't seen?
-  - Above all, what **outside judge** checks the result? Prefer a tool the model can run itself, never the model grading its own work.
+  - Above all, what **outside judge** checks the result? Prefer a tool the executor can run itself, never the model grading its own work. If the executor can't run anything, the judge sits outside the deliverable (the user's tests, a reviewer, real data next week), and the prompt asks only for what that judge needs, such as the computation shown or a short list of checks. It doesn't ask for a test suite or benchmark that would crowd out the main deliverable.
 - **Range (bring in more fields).** Restate the task with verbs instead of nouns. A QBR is not "a deck"; it is "getting busy people to believe a cause-and-effect story and decide under uncertainty in 30 minutes". Then pick the crew those verbs call for, including a hostile red team. Each crew member must *do* that job's work, for example research the way a short seller does, never just *write like* one.
 
 Skip Speed (the same work, faster), because it isn't ambition. Skip altitude for purely creative work, where it fits poorly.
@@ -69,7 +71,8 @@ The rewritten prompt must carry all of these:
   - Local, reversible actions (edits, test runs, scratch files) go ahead freely.
   - Deleting, force-pushing, sending messages, posting, spending money or changing shared systems need the user's yes.
   - The riskier the tool, the higher the certainty needed before using it.
-- **Output.** Audience, format, length and where it goes. Describe the target positively. Add 3–5 varied examples in `<example>` tags when the format matters.
+- **Grounding.** Every figure must be computed from the provided data or real tool output, and shown so it can be checked. Anything else is labeled as an assumption or a hypothesis to test. When the data can't answer a question, the output says so instead of estimating a result.
+- **Output.** Audience, format, length budget and where it goes. The core deliverable comes first and must be complete. Extras such as tests, appendices and next steps take a small share of the budget, and only after it. Describe the target positively. Add 3–5 varied examples in `<example>` tags when the format matters.
 - **Context.** The reason behind each constraint ("read aloud by TTS, so no ellipses"), so the model can generalize from it.
 
 ## 5. Lint the prompt
@@ -77,6 +80,8 @@ The rewritten prompt must carry all of these:
 Before showing the prompt to the user, check it against this list and fix every hit:
 
 - **Contradictions.** A stretch target that clashes with a constraint (200ms load vs. no infra changes). Resolve the clash, or state which side wins.
+- **Feasibility.** Every method, tool, target and check is something the executor can do in this run with this data. Downgrade each one that fails this, or move it to Prerequisites. A demand the executor can only fake is worse than no demand.
+- **Crowding.** The deliverable the user asked for still gets most of the length budget. Verification material, generated datasets, crew sections and appendices can't push it out.
 - **Altitude.** Give heuristics with reasons rather than if/else rules, and pitch each one somewhere between rigid and vague.
 - **No-ops.** Lines the model already follows by default ("be thorough", "double-check everything" on Opus 5). Delete them.
 - **Negation.** Rewrite bans as the behavior you want. Keep a ban only as a hard guardrail, paired with that positive target.
