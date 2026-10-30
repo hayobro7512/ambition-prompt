@@ -41,10 +41,13 @@ Each round asks the whole **frontier**: every decision whose prerequisites are a
 ```
 ❓ **Q1** - **<title>**: <question>
    Why it matters: <one line on what changes in the prompt depending on the answer>
-   Options: <2–4 concrete options, most ambitious first, or omit for open questions>
+   Options:
+   1. <most ambitious option>
+   2. <next option>
+   (2–4 numbered options, or omit for open questions)
 ```
 
-List the questions and let the user think. **Give no recommended answers and no assumed defaults**, so that each answer is the user's own decision and the user isn't anchored on yours. If the user replies "you pick" to a question, choose the most ambitious option that is feasible with the access available, and say which one you chose. Wait for the answers, then recompute the frontier. Finding facts is your job: look them up instead of asking. Making decisions is the user's job. Grilling is done when the frontier is empty and the user agrees you understand each other.
+Number the options so the user can answer in short form ("Q2: 1"). List the questions and let the user think. **Give no recommended answers and no assumed defaults**, so that each answer is the user's own decision and the user isn't anchored on yours. If the user replies "you pick" to a question, choose the most ambitious option that is feasible with the access available, and say which one you chose. Wait for the answers, then recompute the frontier. Finding facts is your job: look them up instead of asking. Making decisions is the user's job. Grilling is done when the frontier is empty and the user agrees you understand each other.
 
 Ask only about decisions that would change the prompt, and at most 5 per round, most important first; long lists get skimmed. Treat what the raw prompt already says as settled: never offer an option that contradicts it (if it says duplicates differ by phone format, phone matching is not up for a vote). Settle everything else from the facts in step 1 or with a sensible default. Typical frontier questions:
 
