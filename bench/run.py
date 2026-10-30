@@ -227,7 +227,7 @@ Your profile:
 
 def extract_final(text):
     m = re.search(r"<final_prompt>(.*?)(</final_prompt>|$)", text, re.S)
-    if m:
+    if m and len(m.group(1).strip()) >= 200:  # shorter = the tag was only mentioned in prose
         return m.group(1).strip(), "tags"
     blocks = re.findall(r"```[^\n]*\n(.*?)```", text, re.S)
     if blocks:
@@ -264,7 +264,7 @@ def stage_optimize(llm, cfg):
             for rnd in range(MAX_ROUNDS + 1):
                 reply = llm.chat("nv", cfg["optimizer"], [{"role": "system", "content": system}] + msgs,
                                  f"opt/{task}/{arm}/{rnd}", temperature=0.2)
-                if "<final_prompt>" in reply:
+                if extract_final(reply)[1] == "tags":
                     break
                 msgs.append({"role": "assistant", "content": reply})
                 if rnd == MAX_ROUNDS:

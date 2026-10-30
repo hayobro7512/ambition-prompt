@@ -48,7 +48,7 @@ List the questions and let the user think. **Give no recommended answers and no 
 
 Ask only about decisions that would change the prompt. Settle everything else from the facts in step 1 or with a sensible default. Typical frontier questions:
 
-- **Outcome.** The real outcome behind the prompt, and how high to aim (task, ongoing state, or a redesigned system).
+- **Outcome.** The real outcome behind the prompt: what decision, event or deadline the result feeds. Ask this one open, without options, because options anchor the user on generic answers. Then ask how high to aim (task, ongoing state, or a redesigned system).
 - **Target.** The unreasonable-but-stated-as-reasonable target.
 - **Done and judge.** What counts as done, and who or what judges it.
 - **Raw material and tools.** The raw material and expert tools to use, and whether the user can grant access to them.
@@ -71,7 +71,7 @@ The rewritten prompt must carry all of these:
   - Local, reversible actions (edits, test runs, scratch files) go ahead freely.
   - Deleting, force-pushing, sending messages, posting, spending money or changing shared systems need the user's yes.
   - The riskier the tool, the higher the certainty needed before using it.
-- **Grounding.** Every figure must be computed from the provided data or real tool output, and shown so it can be checked. Anything else is labeled as an assumption or a hypothesis to test. When the data can't answer a question, the output says so instead of estimating a result.
+- **Grounding.** Every figure must be computed from the provided data or real tool output, and shown so it can be checked. Anything else is labeled as an assumption or a hypothesis to test. When the data can't answer a question, the output says so instead of estimating a result. If the executor can't run code and the data is more than it can tally by eye, the computation goes to a tool the user has (spreadsheet formulas, SQL, a script), and the prompt says not to tally rows in the reply.
 - **Output.** Audience, format, length budget and where it goes. The core deliverable comes first and must be complete. Extras such as tests, appendices and next steps take a small share of the budget, and only after it. Describe the target positively. Add 3–5 varied examples in `<example>` tags when the format matters.
 - **Context.** The reason behind each constraint ("read aloud by TTS, so no ellipses"), so the model can generalize from it.
 
@@ -81,7 +81,7 @@ Before showing the prompt to the user, check it against this list and fix every 
 
 - **Contradictions.** A stretch target that clashes with a constraint (200ms load vs. no infra changes). Resolve the clash, or state which side wins.
 - **Feasibility.** Every method, tool, target and check is something the executor can do in this run with this data. Downgrade each one that fails this, or move it to Prerequisites. A demand the executor can only fake is worse than no demand.
-- **Workload.** Add up the work, not just each step. If the whole job is more computation than the executor can finish in one pass (row-by-row tallies, many confidence intervals, power calculations), cut it to the few numbers that drive the decision, have the executor write code the user runs for the rest, or list a code runner as a prerequisite. The answer must fit with room to spare.
+- **Workload.** Add up the work, not just each step. If the whole job is more computation than the executor can finish in one pass (row-by-row tallies, many confidence intervals, power calculations), cut it to the few numbers that drive the decision, have the executor write formulas or code for a tool the user has (ask which in grilling), or list a code runner as a prerequisite. The answer must fit with room to spare.
 - **Crowding.** The deliverable the user asked for still gets most of the length budget. Verification material, generated datasets, crew sections and appendices can't push it out.
 - **Altitude.** Give heuristics with reasons rather than if/else rules, and pitch each one somewhere between rigid and vague.
 - **No-ops.** Lines the model already follows by default ("be thorough", "double-check everything" on Opus 5). Delete them.
