@@ -46,7 +46,7 @@ Each round asks the whole **frontier**: every decision whose prerequisites are a
 
 List the questions and let the user think. **Give no recommended answers and no assumed defaults**, so that each answer is the user's own decision and the user isn't anchored on yours. If the user replies "you pick" to a question, choose the most ambitious option that is feasible with the access available, and say which one you chose. Wait for the answers, then recompute the frontier. Finding facts is your job: look them up instead of asking. Making decisions is the user's job. Grilling is done when the frontier is empty and the user agrees you understand each other.
 
-Ask only about decisions that would change the prompt. Settle everything else from the facts in step 1 or with a sensible default. Typical frontier questions:
+Ask only about decisions that would change the prompt, and at most 5 per round, most important first; long lists get skimmed. Treat what the raw prompt already says as settled: never offer an option that contradicts it (if it says duplicates differ by phone format, phone matching is not up for a vote). Settle everything else from the facts in step 1 or with a sensible default. Typical frontier questions:
 
 - **Outcome.** The real outcome behind the prompt: what decision, event or deadline the result feeds. Ask this one open, without options, because options anchor the user on generic answers. Then ask how high to aim (task, ongoing state, or a redesigned system).
 - **Target.** The unreasonable-but-stated-as-reasonable target.
