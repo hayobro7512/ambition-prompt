@@ -1,0 +1,1 @@
+attached is our customer export (customers.csv). churn has been creeping up the last few months. can you figure out whats driving it and what we should do about it?

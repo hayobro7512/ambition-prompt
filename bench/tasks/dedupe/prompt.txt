@@ -1,0 +1,1 @@
+write a python function dedupe_contacts(rows) that removes duplicate contacts. rows is a list of dicts like {"name": "Ann Lee", "email": "ann@x.com", "phone": "(415) 555-0100", "company": "Acme", "updated_at": "2024-05-01"}. the same person shows up with different email caps or phone formats. keep the most complete record. no pandas
