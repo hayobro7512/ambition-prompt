@@ -124,3 +124,9 @@ bench/
   optimizers/openai_guide.md  OpenAI-guide optimizer prompt
   runs/                       gitignored: cached responses and per-stage records
 ```
+
+## Protocol deviations (after pre-registration)
+
+1. **2026-10-29, harness invocation note.** In the first real run the optimizer, given ambition-prompt's SKILL.md as its system prompt, decided it had not been invoked: the raw prompt arrived without a trigger phrase. It solved the task itself and returned the raw prompt unchanged. The harness note, which is identical for all arms, now states that the user has explicitly invoked the optimizer on the raw prompt. All arms were re-optimized from scratch after the fix.
+2. **2026-10-29, model swaps.** NVIDIA's `/v1/models` lists ids that return 404 or 410 for free accounts. Swaps: simulated user `deepseek-v4.1-flash` (repeated 504s) → `nemotron-3.5-lightning-30b-a3b`; executor `nemotron-3-super-120b` (404) → `nemotron-3-ultra-550b` (the same model as the optimizer); second judge `kimi-k2.6` (404) → `openai/gpt-oss-20b`. That makes both judges OpenAI-made models, which weakens their independence. The startup check now pings each model instead of trusting the list.
+3. **2026-10-29, skill version.** The skill under test is commit `80e56b5` (questions listed without recommended answers, per the author's preference). The pre-registration recorded an earlier hash.

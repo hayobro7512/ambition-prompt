@@ -19,9 +19,9 @@ N_SAMPLES, MAX_ROUNDS, OPENAI_CAP = 3, 3, 40
 NV_URL, OA_URL = "https://integrate.api.nvidia.com/v1", "https://api.openai.com/v1"
 DEFAULT_MODELS = {  # NVIDIA free tier; from `nv.py --task chat --pick`, checked live against /v1/models on 2026-10-29
     "optimizer": "nvidia/nemotron-3-ultra-550b-a55b",
-    "simuser": "deepseek-ai/deepseek-v4.1-flash",
-    "executor": "nvidia/nemotron-3-super-120b-a12b",
-    "judge_nv": "moonshotai/kimi-k2.6",  # different family from the executor (z-ai/glm-5.3 is end-of-life)
+    "simuser": "nvidia/nemotron-3.5-lightning-30b-a3b",  # deepseek-v4.1-flash kept returning 504
+    "executor": "nvidia/nemotron-3-ultra-550b-a55b",  # nemotron-3-super is listed but 404s for free accounts
+    "judge_nv": "openai/gpt-oss-20b",  # different family from the executor; kimi-k2.6/glm-5.3 404 or 410
 }
 OA_PREFS = ["gpt-5.6-sol", "gpt-5.6", "gpt-5.6-terra", "gpt-5.5", "gpt-5.2", "gpt-5.1", "gpt-5", "o3", "gpt-4.1"]
 CTX = ssl.create_default_context(cafile="/etc/ssl/cert.pem") if os.path.exists("/etc/ssl/cert.pem") else None
@@ -192,7 +192,7 @@ def harness_note(task):
 ---
 ## Benchmark harness (identical for every optimizer)
 You are running inside an automated benchmark through a plain chat API. You have no tools in this session: you cannot read files, browse or run code. The facts you would normally look up are these:
-- The user's raw prompt is their first message.
+- The user has explicitly invoked you on their raw prompt, which is their first message. Treat it as a prompt to improve, not a task to do yourself.
 - Target tool for the prompt you write: a general-purpose LLM chat model, called once, single-shot, with no tools, no file access, no code execution, no browsing and no chance to ask follow-up questions. Its reply is the final deliverable the user receives.
 - {att}
 - You may ask the user clarifying questions. Any message of yours without a final prompt goes to the user, who replies. At most {MAX_ROUNDS} rounds of questions are allowed.
@@ -652,8 +652,13 @@ def main():
     llm = LLM(rd, a.dry_run or cfg.get("dry_run", False))
     print(f"run dir: {rd}")
     if not llm.dry and a.stage != "report":  # fail fast on retired model ids (NVIDIA retires them often)
-        live = set(llm.models("nv"))
-        gone = [cfg[k] for k in DEFAULT_MODELS if cfg[k] not in live]
+        gone = []  # /v1/models lists ids that still 404, so ping each one instead
+        for k in DEFAULT_MODELS:
+            try:
+                llm._http("nv", "/chat/completions", {"model": cfg[k], "max_tokens": 600,
+                                                      "messages": [{"role": "user", "content": "Reply: ok"}]})
+            except RuntimeError:
+                gone.append(cfg[k])
         if gone:
             sys.exit(f"not served by NVIDIA anymore: {gone}; pick others with nv.py --task chat --pick")
     stages = ["optimize", "execute", "judge", "report"] if a.stage == "all" else [a.stage]
