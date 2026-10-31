@@ -26,6 +26,8 @@ DEFAULT_MODELS = {  # NVIDIA free tier; from `nv.py --task chat --pick`, checked
     "executor": "nvidia/nemotron-3-ultra-550b-a55b",  # nemotron-3-super is listed but 404s for free accounts
     "judge_nv": "openai/gpt-oss-20b",  # different family from the executor; kimi-k2.6/glm-5.3 404 or 410
 }
+JUDGE1 = None  # a suite may fix judge 1 to an NVIDIA model (ids with "/") instead of picking an OpenAI one
+QUOTA = ("insufficient_quota", "credit_balance_exhausted")
 OA_PREFS = ["gpt-5.6-sol", "gpt-5.6", "gpt-5.6-terra", "gpt-5.5", "gpt-5.2", "gpt-5.1", "gpt-5", "o3", "gpt-4.1"]
 CTX = ssl.create_default_context(cafile="/etc/ssl/cert.pem") if os.path.exists("/etc/ssl/cert.pem") else None
 PM_DIR = os.path.join(BENCH, "optimizers", "prompt-master")
@@ -142,7 +144,7 @@ class LLM:
                 return json.load(urllib.request.urlopen(req, timeout=600, context=CTX))
             except urllib.error.HTTPError as e:
                 msg = e.read().decode()[:300]
-                if e.code in (429, 500, 502, 503, 504) and attempt < 4 and "insufficient_quota" not in msg:
+                if e.code in (429, 500, 502, 503, 504) and attempt < 4 and not any(q in msg for q in QUOTA):
                     time.sleep(5 * 2 ** attempt)
                     continue
                 raise RuntimeError(f"{provider} HTTP {e.code}: {msg}")
@@ -494,6 +496,8 @@ def judge_context(task):
 
 def ask_judge(llm, cfg, which, system, user, tag):
     provider, model = ("oa", cfg["judge_oa"]) if which == "oa" else ("nv", cfg["judge_nv"])
+    if "/" in model:
+        provider = "nv"
     if provider in llm.dead:
         return None
     msgs = [{"role": "system", "content": system}, {"role": "user", "content": user}]
@@ -505,7 +509,7 @@ def ask_judge(llm, cfg, which, system, user, tag):
             print(f"  {tag}: {e}")
             return None
         except RuntimeError as e:  # e.g. OpenAI out of credits: record the gap instead of losing the whole stage
-            if "insufficient_quota" not in str(e):
+            if not any(q in str(e) for q in QUOTA):
                 raise
             print(f"  {tag}: provider out of quota, skipped for the rest of this run")
             llm.dead.add(provider)
@@ -516,6 +520,9 @@ def ask_judge(llm, cfg, which, system, user, tag):
 
 
 def stage_judge(llm, cfg, seed):
+    if not cfg.get("judge_oa") and JUDGE1:
+        cfg["judge_oa"] = JUDGE1
+        dump(os.path.join(llm.run_dir, "config.json"), cfg)
     if not cfg.get("judge_oa"):
         ids = llm.models("oa")
         cfg["judge_oa"] = next((m for m in OA_PREFS if m in ids), None) or sorted(
@@ -735,6 +742,9 @@ def stage_report(llm, cfg, excerpts):
         L += [f"**{t}:**", "", "```", dread("tasks", t, "prompt.txt").strip(), "```", ""]
 
     text = "\n".join(L)
+    if "/" in (cfg.get("judge_oa") or ""):  # both judges on NVIDIA: label them by slot, not by vendor
+        head, body = text.split("\n## ", 1)
+        text = head + "\n## " + body.replace("OpenAI", "Judge 1").replace("NVIDIA", "Judge 2")
     with open(os.path.join(rd, "RESULTS.md"), "w") as f:
         f.write(text)
     if not llm.dry:
