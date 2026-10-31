@@ -363,6 +363,54 @@ def stage_execute(llm, cfg):
                       + (f", tests {rec['tests']['passed']}/{rec['tests']['total']}" if task in CODE_TASKS else ""))
 
 
+# ---------------------------------------------------------------- v2: Claude subagents run optimize/execute via files
+def stage_packets(rd):
+    """Write each role's instructions under <run>/claude/. Optimizer and simulated-user packets first; executor
+    packets for every optimize/<task>_<arm>.json that exists (re-run after ingest)."""
+    cd = os.path.join(rd, "claude")
+    os.makedirs(cd, exist_ok=True)
+    for task in TASKS:
+        raw = dread("tasks", task, "prompt.txt").strip()
+        dump(os.path.join(rd, "optimize", f"{task}_A.json"),
+             {"task": task, "arm": "A", "final_prompt": raw, "qa": [], "rounds": 0, "extraction": "raw"})
+        for arm in ARMS:
+            if arm != "A":
+                with open(os.path.join(cd, f"opt_{task}_{arm}.system.md"), "w") as f:
+                    f.write(arm_system(arm) + harness_note(task))
+                with open(os.path.join(cd, f"sim_{task}_{arm}.system.md"), "w") as f:
+                    f.write(SIMUSER_RULES + dread("personas", f"{task}.md"))
+            op = os.path.join(rd, "optimize", f"{task}_{arm}.json")
+            if os.path.exists(op):
+                with open(os.path.join(cd, f"exec_{task}_{arm}.prompt.md"), "w") as f:
+                    f.write(load(op)["final_prompt"] + attachment(task))
+    print(f"packets in {cd}")
+
+
+def stage_ingest(rd):
+    """opt_<task>_<arm>.final.md (+ .qa.json) -> optimize/*.json; exec_<task>_<arm>_<i>.out.md -> execute/*.json."""
+    cd = os.path.join(rd, "claude")
+    for n in sorted(os.listdir(cd)):
+        m = re.fullmatch(r"opt_(\w+)_([A-Z])\.final\.md", n)
+        if m:
+            task, arm = m.groups()
+            final, how = extract_final(open(os.path.join(cd, n)).read())
+            qa_path = os.path.join(cd, f"opt_{task}_{arm}.qa.json")
+            qa = load(qa_path) if os.path.exists(qa_path) else []
+            dump(os.path.join(rd, "optimize", f"{task}_{arm}.json"), {"task": task, "arm": arm, "final_prompt": final,
+                 "extraction": how, "rounds": len(qa), "qa": qa})
+            print(f"ingest optimize {task}/{arm}: {len(final)} chars ({how}), {len(qa)} rounds")
+        m = re.fullmatch(r"exec_(\w+)_([A-Z])_(\d+)\.out\.md", n)
+        if m:
+            task, arm, i = m.group(1), m.group(2), int(m.group(3))
+            text = open(os.path.join(cd, n)).read().strip()
+            rec = {"task": task, "arm": arm, "sample": i, "output": text, "chars": len(text), "words": len(text.split())}
+            if task in CODE_TASKS:
+                rec["tests"] = run_hidden_tests(text, task)
+            dump(os.path.join(rd, "execute", f"{task}_{arm}_{i}.json"), rec)
+            print(f"ingest execute {task}/{arm}/{i}: {len(text)} chars"
+                  + (f", tests {rec['tests']['passed']}/{rec['tests']['total']}" if task in CODE_TASKS else ""))
+
+
 def rubric_section(name):
     text = read("RUBRIC.md")
     sec = {m.group(1): m.start() for m in re.finditer(r"^## (.+)$", text, re.M)}
@@ -647,7 +695,7 @@ def stage_report(llm, cfg, excerpts):
 # ---------------------------------------------------------------- main
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--stage", choices=["all", "optimize", "execute", "judge", "report"], default="all")
+    ap.add_argument("--stage", choices=["all", "optimize", "execute", "judge", "report", "packets", "ingest"], default="all")
     ap.add_argument("--dry-run", action="store_true", help="mock every LLM call; no keys needed")
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--run", help="run directory (default: new for optimize/all, latest otherwise)")
@@ -676,6 +724,8 @@ def main():
     apply_suite(cfg.get("suite", "v1"))
     llm = LLM(rd, a.dry_run or cfg.get("dry_run", False))
     print(f"run dir: {rd}")
+    if a.stage in ("packets", "ingest"):
+        return stage_packets(rd) if a.stage == "packets" else stage_ingest(rd)
     if not llm.dry and a.stage != "report":  # fail fast on retired model ids (NVIDIA retires them often)
         gone = []  # /v1/models lists ids that still 404, so ping each one instead
         for k in DEFAULT_MODELS:
