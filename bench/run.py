@@ -299,6 +299,9 @@ def stage_optimize(llm, cfg):
                            for m in msgs[1:]]
                 answer = llm.chat("nv", cfg["simuser"], [{"role": "system", "content": SIMUSER_RULES + persona}]
                                   + flipped, f"user/{task}/{arm}/{rnd}", max_tokens=2500, temperature=0.2)
+                if not answer.strip():  # small reasoning models sometimes return empty content; retry once, bigger budget
+                    answer = llm.chat("nv", cfg["simuser"], [{"role": "system", "content": SIMUSER_RULES + persona}]
+                                      + flipped, f"user/{task}/{arm}/{rnd}/retry", max_tokens=6000, temperature=0.2)
                 qa.append({"round": rnd + 1, "question": reply, "answer": answer})
                 msgs.append({"role": "user", "content": answer})
             msgs.append({"role": "assistant", "content": reply})
