@@ -1,0 +1,32 @@
+ambition-prompt
+Copyright (c) 2026 the ambition-prompt authors. Licensed under the MIT License (see LICENSE).
+
+Not affiliated with or endorsed by Anthropic, OpenAI or any author listed below.
+
+Ideas (no text copied)
+- Felix Rieseberg, "How to Be More Ambitious: A Tutorial for Humans with Models" (2026-10-13):
+  the altitude / depth / range framing. All wording in this skill is original.
+- Anthropic and OpenAI public prompting guides: contract elements (done criteria, stop rules,
+  reasons behind constraints), long-context placement.
+
+Adapted from MIT-licensed projects (method and short phrasing adapted, rewritten)
+- Matt Pocock, `grilling` skill (MIT): interviewing in rounds over the frontier of a decision tree.
+- nidhinjs/prompt-master (MIT) https://github.com/nidhinjs/prompt-master
+  input sanitization; no framework names in the output.
+- ckelsoe/prompt-architect (MIT) https://github.com/ckelsoe/prompt-architect
+  visible placeholders instead of invented facts; never drop a prohibition.
+- k-vaca/prompt-engineering-skill (MIT) https://github.com/k-vaca/prompt-engineering-skill
+  gold input/output pairs as the definition of done; edge behavior; reasoning vs non-reasoning
+  targets; untrusted input treated as data.
+- openai/openai-cookbook (MIT) https://github.com/openai/openai-cookbook
+  checking that examples obey the prompt's rules.
+- gsd-build/get-shit-done (MIT) https://github.com/gsd-build/get-shit-done
+  stating inferred facts as assumptions with evidence instead of asking.
+- CR-730/agent-system-prompt-architect-skill (MIT)
+  https://github.com/CR-730/agent-system-prompt-architect-skill
+  keeping pipeline vocabulary out of the emitted prompt.
+- anthropics/claude-cookbooks metaprompt (MIT) https://github.com/anthropics/claude-cookbooks
+  data first, question last; reasoning before the verdict.
+
+Vendored for benchmarking only (bench/optimizers/, each with its own LICENSE)
+- prompt-master (MIT), prompt-architect v3.5.1 (MIT, commit 6c7a2c7).
