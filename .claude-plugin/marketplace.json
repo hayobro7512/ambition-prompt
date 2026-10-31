@@ -1,0 +1,14 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "ambition-prompt",
+  "description": "A prompting skill that raises the target, asks only the user's decisions, and lints the prompt before running it.",
+  "owner": { "name": "hayobro7512" },
+  "plugins": [
+    {
+      "name": "ambition-prompt",
+      "description": "Make a prompt more ambitious and checkable, then run it.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "ambition-prompt",
+  "version": "0.1.0",
+  "description": "Turns a prompt into the most ambitious version that can still be checked: asks only the decisions that are yours, writes a contract with worked examples, lints it, then runs it once you approve.",
+  "author": { "name": "hayobro7512" },
+  "license": "MIT"
+}

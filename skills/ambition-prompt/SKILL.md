@@ -18,7 +18,7 @@ Before asking anything, find out what you can: the files and repos involved, the
 Pin down the **executor**, the model or agent that will run the final prompt, along three lines:
 - **Tools.** Can it run code, read files, browse? This session with tools, or a single-shot chat model with none?
 - **Reasoning.** Is it a reasoning model (it thinks before answering) or not? Reasoning models need no "think step by step" scaffolding or hand-written step plans; non-reasoning models benefit from a short reasoning step on math or logic, written before the answer.
-- **Budget.** How much can it do in one reply? A model without code execution can't reliably tally hundreds of rows or chain dozens of calculations. That work goes to code, or to formulas the user runs.
+- **Budget.** How much can it do in one reply? A model without code execution can't reliably tally hundreds of rows or chain dozens of calculations; that work goes to code, or to formulas the user runs. A few dozen rows and a handful of sums it can do by hand, and the answer is worthless without those numbers, so let it compute them and show the working.
 
 For facts you can infer but not confirm, write them down as assumptions with evidence ("Assuming Python 3.11: the repo's pyproject pins it"), to show in the grilling round so the user can correct them without being asked.
 
@@ -56,6 +56,8 @@ Rules:
 - **Facts are your job; decisions are the user's.** Look facts up. Show inferred facts as a short "Assuming…" list above the questions instead of asking about them.
 - **At most 5 questions per round**, most important first. Long lists get skimmed.
 - **Ask the outcome question open, with no options**: what decision, event or deadline the result feeds. Options anchor people on generic answers, and the real goal is usually the most valuable thing you'll learn.
+- **Edge behavior that changes the result is a decision, not a craft default.** Empty or missing fields, ties, rounding, extra input fields (a quantity, a discount), whether input may be changed: list the cases the raw prompt leaves open and ask about the ones that change the output. Format and structure stay your call.
+- **Always ask at least one round**, even when the prompt looks clear, unless the user says to skip questions. A prompt that looks complete to you usually hides a choice the user would make differently.
 - **Don't reopen what the raw prompt settles.** Never offer an option that contradicts it: if it says duplicates differ by phone format, phone matching is not up for a vote.
 - **Give no recommended answers and no assumed defaults**, so each answer is the user's own. Number the options so the user can reply "Q2: 1". If the user says "you pick", choose the most ambitious feasible option and say which.
 - If a higher rung needs access the user doesn't have, offer it anyway and say exactly what to grant.
@@ -73,7 +75,7 @@ The rewritten prompt carries all of these, written for the executor, in plain ta
 - **Done criteria with worked examples.** A condition that demands real work ("every segment compared on revenue per visitor, not just conversion") plus the outside judge. Where the output can be checked against cases, include 3–5 input → expected-output pairs, at least one of them a hard or ambiguous case with its resolution. Build them from the user's facts and material, never from invented numbers. They double as examples and as the judge. Put them in the prompt as examples; don't ask a no-tools executor to write or mentally run a harness for them.
 - **Edge behavior.** What to do on empty, malformed, missing-field, out-of-scope or unanswerable input ("return {} for no items"; "if the sources don't say, write 'not in the sources'").
 - **Grounding.** Every figure comes from the provided material or real tool output and is shown so it can be checked. Anything else is labeled as an assumption. When the material can't answer a question, the output says so.
-- **Executor note** (only if the executor can't run code; include it word for word, addressed to the executor): "You can't run code, so don't count or compute in your reply. Write the deliverable directly. Where a number would need counting across the data, give the formula or query that computes it and write your figure as 'estimate: verify with <formula>'." Then ask for no table, test or statistic that would need that counting.
+- **Executor note** (only if the executor can't run code *and* the counting is beyond the budget in step 1; include it word for word, addressed to the executor). For small data, ask instead for the key figures computed by hand with the working shown, plus the formula that checks each one. The note: "You can't run code, so don't count or compute in your reply. Write the deliverable directly. Where a number would need counting across the data, give the formula or query that computes it and write your figure as 'estimate: verify with <formula>'." Then ask for no table, test or statistic that would need that counting.
 - **Stop and hand-back rules.** When to stop. When stuck on a reversible choice: decide, note the assumption, continue. When the task turns out infeasible: say so rather than work around it.
 - **Limits** (for agentic executors). Local, reversible actions go ahead freely. Deleting, force-pushing, sending, posting, spending money or changing shared systems need the user's yes.
 - **Output.** Audience, format, length budget, destination. The core deliverable comes first and is complete; extras (tests, appendices, next steps) take a small share, after it.
@@ -88,7 +90,7 @@ Before showing the prompt, check it against this list and fix every hit:
 - **Contradictions.** A stretch target that clashes with a constraint. Resolve it, or state which side wins.
 - **Feasibility.** Every method, tool, target and check is something this executor can do with this data. Downgrade or move to Prerequisites anything that fails.
 - **Workload.** Add up the work, not each step. If it's more than the executor can finish in one pass, cut to the few numbers that drive the decision, send the rest to code or formulas, or list a code runner as a prerequisite. For a single-shot executor with no tools, ask for the deliverable plus at most a short list of checks, because a reasoning model that starts working in its reply often never reaches the answer.
-- **Crowding.** The deliverable the user asked for gets most of the length budget.
+- **Crowding and length.** The deliverable the user asked for gets most of the length budget, and the budget is what the reader will actually read. Ambition doesn't make a spec or memo longer: cut sections the reader won't act on.
 - **Examples obey the rules.** Every example follows every rule in the prompt (models copy the example when they conflict), and no example contains an invented statistic.
 - **No skill vocabulary.** Words like altitude, depth, range, frontier or crew never appear in the prompt. Say what the executor should do instead.
 - **No-ops and bloat.** Delete lines the model follows anyway ("be thorough") and use the fewest words that carry the meaning. Ambition shows in the target, not the word count.

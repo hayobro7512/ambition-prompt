@@ -98,7 +98,7 @@ class LLM:
                 return json.load(urllib.request.urlopen(req, timeout=600, context=CTX))
             except urllib.error.HTTPError as e:
                 msg = e.read().decode()[:300]
-                if e.code in (429, 500, 502, 503, 504) and attempt < 4:
+                if e.code in (429, 500, 502, 503, 504) and attempt < 4 and "insufficient_quota" not in msg:
                     time.sleep(5 * 2 ** attempt)
                     continue
                 raise RuntimeError(f"{provider} HTTP {e.code}: {msg}")
@@ -451,6 +451,11 @@ def ask_judge(llm, cfg, which, system, user, tag):
         except Budget as e:
             print(f"  {tag}: {e}")
             return None
+        except RuntimeError as e:  # e.g. OpenAI out of credits: record the gap instead of losing the whole stage
+            if "insufficient_quota" not in str(e):
+                raise
+            print(f"  {tag}: provider out of quota, skipped")
+            return None
         if got is not None:
             return got
     return None
@@ -679,7 +684,7 @@ def stage_report(llm, cfg, excerpts):
     with open(os.path.join(rd, "RESULTS.md"), "w") as f:
         f.write(text)
     if not llm.dry:
-        shutil.copy(os.path.join(rd, "RESULTS.md"), os.path.join(BENCH, "RESULTS.md"))
+        shutil.copy(os.path.join(rd, "RESULTS.md"), os.path.join(DATA, "RESULTS.md"))  # v1 -> bench/, v2 -> bench/v2/
     print(text)
 
     if excerpts:  # local only, never written to the repo
@@ -732,7 +737,7 @@ def main():
         return stage_packets(rd) if a.stage == "packets" else stage_ingest(rd)
     if not llm.dry and a.stage != "report":  # fail fast on retired model ids (NVIDIA retires them often)
         gone = []  # /v1/models lists ids that still 404, so ping each one instead
-        for k in DEFAULT_MODELS:
+        for k in [k for k in DEFAULT_MODELS if " " not in cfg[k]]:  # v2 role labels aren't NVIDIA ids
             try:
                 llm._http("nv", "/chat/completions", {"model": cfg[k], "max_tokens": 600,
                                                       "messages": [{"role": "user", "content": "Reply: ok"}]})

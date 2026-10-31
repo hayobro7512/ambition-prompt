@@ -3,7 +3,7 @@
 Goal: held-out, blind-judged evidence that ambition-prompt beats prompt-master + strongest rival; launch-ready repo (push needs user yes).
 
 ## Budgets
-- Subagent runs: 1 / 100 (survey)
+- Subagent runs: 83 / 100 (survey 1, v2-r1 optimizers 15, simusers 7, executors 40; v2-r2 optimizers 5, simusers 5, executors 10)
 - OpenAI calls (bench v2): 0 / 150
 
 ## Steps
