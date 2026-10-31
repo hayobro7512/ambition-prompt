@@ -80,6 +80,7 @@ class Budget(Exception):
 class LLM:
     def __init__(self, run_dir, dry):
         self.run_dir, self.dry, self.last_nv = run_dir, dry, 0.0
+        self.dead = set()  # providers out of quota: stop calling them (and counting failed calls)
         self.counter = os.path.join(run_dir, "openai_calls.json")
 
     def _oa_spend(self):
@@ -493,6 +494,8 @@ def judge_context(task):
 
 def ask_judge(llm, cfg, which, system, user, tag):
     provider, model = ("oa", cfg["judge_oa"]) if which == "oa" else ("nv", cfg["judge_nv"])
+    if provider in llm.dead:
+        return None
     msgs = [{"role": "system", "content": system}, {"role": "user", "content": user}]
     for attempt in range(2):
         t = tag if attempt == 0 else tag + "/retry"
@@ -504,7 +507,8 @@ def ask_judge(llm, cfg, which, system, user, tag):
         except RuntimeError as e:  # e.g. OpenAI out of credits: record the gap instead of losing the whole stage
             if "insufficient_quota" not in str(e):
                 raise
-            print(f"  {tag}: provider out of quota, skipped")
+            print(f"  {tag}: provider out of quota, skipped for the rest of this run")
+            llm.dead.add(provider)
             return None
         if got is not None:
             return got

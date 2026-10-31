@@ -54,6 +54,7 @@ Format each question like this:
 
 Rules:
 - **Facts are your job; decisions are the user's.** Look facts up. Show inferred facts as a short "Assuming…" list above the questions instead of asking about them.
+- **Ask for the facts only the user has.** Names, prices, dates, people, process steps: if the deliverable needs them and you can't look them up, ask in the first round with one open question that lists them ("paste what you have"). Before writing the final prompt, check each placeholder; if the user hasn't been asked for it, ask another round instead of finishing.
 - **At most 5 questions per round**, most important first. Long lists get skimmed.
 - **Ask the outcome question open, with no options**: what decision, event or deadline the result feeds. Options anchor people on generic answers, and the real goal is usually the most valuable thing you'll learn.
 - **Edge behavior that changes the result is a decision, not a craft default.** Empty or missing fields, ties, rounding, extra input fields (a quantity, a discount), whether input may be changed: list the cases the raw prompt leaves open and ask about the ones that change the output. Format and structure stay your call.
@@ -65,7 +66,7 @@ Rules:
 
 Typical frontier: **outcome** (open), **target**, **done and judge**, **raw material and tools**, **reviewers**, **budget and risk** (time, money, what's out of bounds), **audience and format**.
 
-**Never invent a fact about the user's world** (their prices, dates, policies, data, people). If grilling ends without it, the prompt carries a visible placeholder, `[fill in: Pro plan price]`, and the placeholder goes under Prerequisites. Sensible defaults are for craft choices only (format, structure, wording).
+**Never invent a fact about the user's world** (their prices, dates, policies, data, people). If the user was asked and still can't give it, the prompt carries a visible placeholder, `[fill in: Pro plan price]`, and the placeholder goes under Prerequisites. Sensible defaults are for craft choices only (format, structure, wording).
 
 ## 4. Write the contract
 
@@ -86,7 +87,7 @@ Layout: put long material (data, documents) first, then the instructions, with t
 
 Before showing the prompt, check it against this list and fix every hit:
 
-- **Preservation.** Every requirement and every ban from the raw prompt and the user's answers is in the final prompt. A ban may gain a positive target but never disappears ("no pandas" stays). The interface the user stated or implied (function name, inputs, return shape, file format) stays exactly as it is; extras such as stats or logs go in a separate helper, never into a changed return value.
+- **Preservation.** Every requirement and every ban from the raw prompt and the user's answers is in the final prompt. A ban may gain a positive target but never disappears ("no pandas" stays). Each one keeps the strength the user gave it: "no exploit detail" doesn't tighten into "only general terms", and "under 300 words" doesn't loosen into "about 300". The interface the user stated or implied (function name, inputs, return shape, file format) stays exactly as it is; extras such as stats or logs go in a separate helper, never into a changed return value.
 - **Contradictions.** A stretch target that clashes with a constraint. Resolve it, or state which side wins.
 - **Feasibility.** Every method, tool, target and check is something this executor can do with this data. Downgrade or move to Prerequisites anything that fails.
 - **Workload.** Add up the work, not each step. If it's more than the executor can finish in one pass, cut to the few numbers that drive the decision, send the rest to code or formulas, or list a code runner as a prerequisite. For a single-shot executor with no tools, ask for the deliverable plus at most a short list of checks, because a reasoning model that starts working in its reply often never reaches the answer.
