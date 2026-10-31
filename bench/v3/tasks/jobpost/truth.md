@@ -1,0 +1,3 @@
+# Answer key (judge only)
+A strong post: states the salary band and equity; the remote rule (US Pacific-Eastern, quarterly Denver week); the real stack; why the role exists (monolith split, owning dispatch at ~2M updates/day); what the first months look like; on-call terms; at most 3 must-haves and 2 nice-to-haves; the 4-step interview with the paid take-home and the two-week decision; the listed benefits; under ~600 words; plain tone.
+Weak: no salary; generic requirement lists; invented perks, numbers or company facts; cliches ("rockstar", "fast-paced"); placeholders left in a post meant to go live (unless the facts were never provided).

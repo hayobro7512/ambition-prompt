@@ -1,0 +1,1 @@
+turn the changelog below (changelog.md) into customer-facing release notes for Ledgerly v4.2. group them under New, Improved and Fixed. leave out internal-only changes. put anything that breaks existing setups at the very top with what customers need to do. plain language, no PR numbers, under 300 words.

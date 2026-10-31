@@ -18,7 +18,7 @@ Before asking anything, find out what you can: the files and repos involved, the
 Pin down the **executor**, the model or agent that will run the final prompt, along three lines:
 - **Tools.** Can it run code, read files, browse? This session with tools, or a single-shot chat model with none?
 - **Reasoning.** Is it a reasoning model (it thinks before answering) or not? Reasoning models need no "think step by step" scaffolding or hand-written step plans; non-reasoning models benefit from a short reasoning step on math or logic, written before the answer.
-- **Budget.** How much can it do in one reply? A model without code execution can't reliably tally hundreds of rows or chain dozens of calculations; that work goes to code, or to formulas the user runs. A few dozen rows and a handful of sums it can do by hand, and the answer is worthless without those numbers, so let it compute them and show the working.
+- **Budget.** How much can it do in one reply? A model without code execution can't reliably tally hundreds of rows or chain dozens of calculations; that work goes to code, or to formulas the user runs. A handful of totals and ratios over a few dozen rows it can do by hand, and the answer is worthless without them, so let it compute those and show the working in one small table. Per-row lists, intervals or tests across many rows are not a handful: send them to formulas.
 
 For facts you can infer but not confirm, write them down as assumptions with evidence ("Assuming Python 3.11: the repo's pyproject pins it"), to show in the grilling round so the user can correct them without being asked.
 

@@ -1,0 +1,1 @@
+we're thinking of moving our free trial from 14 to 30 days. my notes are below (notes.md). should we?

@@ -17,6 +17,9 @@ TASKS = ["dedupe", "churn"]
 ARMS = {"A": "raw prompt", "B": "prompt-master", "C": "OpenAI-guide", "D": "ambition-prompt"}
 N_SAMPLES, MAX_ROUNDS, OPENAI_CAP = 3, 3, 40
 NV_URL, OA_URL = "https://integrate.api.nvidia.com/v1", "https://api.openai.com/v1"
+AN_URL = "https://api.anthropic.com/v1"
+AN_CAP_USD, AN_CAP_CALLS = 15.0, 200  # shared across all runs: the key belongs to someone else
+AN_PRICE = {"claude-sonnet-5-5": (2.0, 10.0)}  # $ per 1M input / output tokens
 DEFAULT_MODELS = {  # NVIDIA free tier; from `nv.py --task chat --pick`, checked live against /v1/models on 2026-10-29
     "optimizer": "nvidia/nemotron-3-ultra-550b-a55b",
     "simuser": "nvidia/nemotron-3.5-lightning-30b-a3b",  # deepseek-v4.1-flash kept returning 504
@@ -34,6 +37,12 @@ SUITES = {"v2": dict(DATA=os.path.join(BENCH, "v2"), TASKS=["split", "abtest", "
                      ARMS={"A": "raw prompt", "B": "prompt-master", "R": "rival", "D": "ambition-prompt"},
                      N_SAMPLES=2, OPENAI_CAP=150, CODE_TASKS={"split"},
                      ATTACH={"abtest": ["ab_results.csv"], "queue": ["sources.md"]},
+                     RIVAL=("prompt-architect", ["adapters/system-prompt.md"])),
+          # v3: fresh held-out set (pre-registered in v3/README.md); roles via the Anthropic API instead of subagents
+          "v3": dict(DATA=os.path.join(BENCH, "v3"), TASKS=["duration", "csat", "jobpost", "trial", "relnotes"],
+                     ARMS={"A": "raw prompt", "B": "prompt-master", "R": "rival", "D": "ambition-prompt"},
+                     N_SAMPLES=2, OPENAI_CAP=140, CODE_TASKS={"duration"},
+                     ATTACH={"csat": ["csat.csv"], "trial": ["notes.md"], "relnotes": ["changelog.md"]},
                      RIVAL=("prompt-architect", ["adapters/system-prompt.md"]))}
 
 
@@ -78,6 +87,40 @@ class LLM:
         if n >= OPENAI_CAP:
             raise Budget(f"OpenAI cap of {OPENAI_CAP} calls reached")
         dump(self.counter, {"count": n + 1, "cap": OPENAI_CAP})
+
+    def _an_call(self, model, messages, max_tokens):
+        """Anthropic Messages API. Hard cap on dollars and calls, counted from real usage, across all runs."""
+        spend = os.path.join(BENCH, "runs", "anthropic_spend.json")
+        s = load(spend) if os.path.exists(spend) else {"usd": 0.0, "calls": 0}
+        if s["usd"] >= AN_CAP_USD or s["calls"] >= AN_CAP_CALLS:
+            raise Budget(f"Anthropic cap reached (${s['usd']:.2f}, {s['calls']} calls)")
+        key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not key:
+            sys.exit("missing ANTHROPIC_API_KEY")
+        system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
+        body = {"model": model, "max_tokens": max_tokens,
+                "messages": [m for m in messages if m["role"] != "system"]}
+        if system:
+            body["system"] = system
+        for attempt in range(4):
+            req = urllib.request.Request(AN_URL + "/messages", data=json.dumps(body).encode(), headers={
+                "x-api-key": key, "anthropic-version": "2026-10-21", "content-type": "application/json"})
+            try:
+                resp = json.load(urllib.request.urlopen(req, timeout=600, context=CTX))
+                break
+            except urllib.error.HTTPError as e:
+                msg = e.read().decode()[:300]
+                if e.code in (429, 500, 529) and attempt < 3:
+                    time.sleep(10 * 2 ** attempt)
+                    continue
+                raise RuntimeError(f"an HTTP {e.code}: {msg}")
+        u, (pin, pout) = resp.get("usage", {}), AN_PRICE[model]
+        s["usd"] += (u.get("input_tokens", 0) * pin + u.get("output_tokens", 0) * pout) / 1e6
+        s["calls"] += 1
+        dump(spend, s)
+        if resp.get("stop_reason") == "refusal":
+            return ""
+        return "".join(b.get("text", "") for b in resp["content"] if b["type"] == "text").strip()
 
     def _http(self, provider, path, body=None):
         key = os.environ.get("NVIDIA_API_KEY" if provider == "nv" else "OPENAI_API_KEY", "")
@@ -130,6 +173,8 @@ class LLM:
             if provider == "oa":
                 self._oa_spend()
             content = mock(tag, messages)
+        elif provider == "an":
+            content = self._an_call(model, messages, max(max_tokens, 16000))
         else:
             body = {"model": model, "messages": messages}
             if provider == "oa":
@@ -155,6 +200,10 @@ class LLM:
         return content
 
 
+def prov(model):
+    return "an" if model.startswith("claude-") else "nv"
+
+
 def strip_think(s):
     s = re.sub(r"<think>.*?</think>", "", s, flags=re.S)
     return s.split("</think>")[-1].strip()
@@ -167,7 +216,7 @@ def mock(tag, messages):
     if kind == "opt":
         _, task, arm = tag.split("/")[:3]
         asked = sum(m["role"] == "assistant" for m in messages)
-        if asked < {"B": 1, "C": 0, "D": 9}[arm] and "Question limit reached" not in messages[-1]["content"]:
+        if asked < {"B": 1, "C": 0, "R": 1, "D": 9}[arm] and "Question limit reached" not in messages[-1]["content"]:
             return f"❓ **Q{asked + 1}** - **Mock**: what matters most here?\n\n➡️ correctness"
         return f"Here it is.\n<final_prompt>\nMOCK {arm} prompt for {task}. Round {asked}.\n</final_prompt>"
     if kind == "user":
@@ -276,14 +325,14 @@ def stage_optimize(llm, cfg):
         dump(os.path.join(llm.run_dir, "optimize", f"{task}_A.json"),
              {"task": task, "arm": "A", "final_prompt": raw, "qa": [], "rounds": 0, "extraction": "raw"})
         persona = dread("personas", f"{task}.md")
-        for arm in "BCD":
+        for arm in [a for a in ARMS if a != "A"]:
             out = os.path.join(llm.run_dir, "optimize", f"{task}_{arm}.json")
             if os.path.exists(out):
                 continue
             system = arm_system(arm) + harness_note(task)
             msgs, qa, forced = [{"role": "user", "content": raw}], [], False
             for rnd in range(MAX_ROUNDS + 1):
-                reply = llm.chat("nv", cfg["optimizer"], [{"role": "system", "content": system}] + msgs,
+                reply = llm.chat(prov(cfg["optimizer"]), cfg["optimizer"], [{"role": "system", "content": system}] + msgs,
                                  f"opt/{task}/{arm}/{rnd}", temperature=0.2)
                 if extract_final(reply)[1] == "tags":
                     break
@@ -292,15 +341,15 @@ def stage_optimize(llm, cfg):
                     forced = True
                     msgs.append({"role": "user", "content": "(harness) Question limit reached. Output the final "
                                                             "prompt now inside <final_prompt> tags."})
-                    reply = llm.chat("nv", cfg["optimizer"], [{"role": "system", "content": system}] + msgs,
+                    reply = llm.chat(prov(cfg["optimizer"]), cfg["optimizer"], [{"role": "system", "content": system}] + msgs,
                                      f"opt/{task}/{arm}/forced", temperature=0.2)
                     break
                 flipped = [{"role": "user" if m["role"] == "assistant" else "assistant", "content": m["content"]}
                            for m in msgs[1:]]
-                answer = llm.chat("nv", cfg["simuser"], [{"role": "system", "content": SIMUSER_RULES + persona}]
+                answer = llm.chat(prov(cfg["simuser"]), cfg["simuser"], [{"role": "system", "content": SIMUSER_RULES + persona}]
                                   + flipped, f"user/{task}/{arm}/{rnd}", max_tokens=2500, temperature=0.2)
                 if not answer.strip():  # small reasoning models sometimes return empty content; retry once, bigger budget
-                    answer = llm.chat("nv", cfg["simuser"], [{"role": "system", "content": SIMUSER_RULES + persona}]
+                    answer = llm.chat(prov(cfg["simuser"]), cfg["simuser"], [{"role": "system", "content": SIMUSER_RULES + persona}]
                                       + flipped, f"user/{task}/{arm}/{rnd}/retry", max_tokens=6000, temperature=0.2)
                 qa.append({"round": rnd + 1, "question": reply, "answer": answer})
                 msgs.append({"role": "user", "content": answer})
@@ -312,9 +361,9 @@ def stage_optimize(llm, cfg):
             print(f"optimize {task}/{arm}: {len(qa)} rounds, {len(final)} chars ({how})")
 
 
-def extract_code(text):
+def extract_code(text, fname="dedupe_contacts"):
     blocks = re.findall(r"```(?:python|py)?[ \t]*\n(.*?)```", text, re.S)
-    with_def = [b for b in blocks if "def dedupe_contacts" in b]
+    with_def = [b for b in blocks if f"def {fname}" in b]
     if with_def:
         return with_def[-1]
     return "\n\n".join(blocks) if blocks else text
@@ -327,7 +376,8 @@ def run_hidden_tests(output, task="dedupe"):
     tmp = tempfile.mkdtemp(prefix="bench_")
     try:
         with open(os.path.join(tmp, "solution.py"), "w") as f:
-            f.write(extract_code(output))
+            m = re.search(r"sol\.(\w+)", tests_src)  # the function under test, e.g. `f = sol.split_bill`
+            f.write(extract_code(output, m.group(1) if m else "dedupe_contacts"))
         with open(os.path.join(tmp, f"test_{task}.py"), "w") as f:
             f.write(tests_src)
         for n in os.listdir(os.path.join(DATA, "hidden_tests")):
@@ -356,7 +406,7 @@ def stage_execute(llm, cfg):
                 out = os.path.join(llm.run_dir, "execute", f"{task}_{arm}_{i}.json")
                 if os.path.exists(out):
                     continue
-                text = llm.chat("nv", cfg["executor"], [{"role": "user", "content": prompt + attachment(task)}],
+                text = llm.chat(prov(cfg["executor"]), cfg["executor"], [{"role": "user", "content": prompt + attachment(task)}],
                                 f"exec/{task}/{arm}/{i}", temperature=0.7)
                 rec = {"task": task, "arm": arm, "sample": i, "output": text, "chars": len(text),
                        "words": len(text.split())}
@@ -737,7 +787,7 @@ def main():
         return stage_packets(rd) if a.stage == "packets" else stage_ingest(rd)
     if not llm.dry and a.stage != "report":  # fail fast on retired model ids (NVIDIA retires them often)
         gone = []  # /v1/models lists ids that still 404, so ping each one instead
-        for k in [k for k in DEFAULT_MODELS if " " not in cfg[k]]:  # v2 role labels aren't NVIDIA ids
+        for k in [k for k in DEFAULT_MODELS if " " not in cfg[k] and prov(cfg[k]) == "nv"]:  # skip role labels, Claude ids
             try:
                 llm._http("nv", "/chat/completions", {"model": cfg[k], "max_tokens": 600,
                                                       "messages": [{"role": "user", "content": "Reply: ok"}]})

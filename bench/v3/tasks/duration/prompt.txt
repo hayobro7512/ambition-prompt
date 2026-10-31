@@ -1,0 +1,1 @@
+write a python function parse_duration(s) that turns strings like "1h30m" into a number of seconds. stdlib only
