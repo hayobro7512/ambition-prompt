@@ -1,0 +1,2 @@
+# Answer key (judge only)
+Graded mainly by hidden tests (bench/v2/hidden_tests/test_split.py). Persona requirements: amounts are cents-exact and sum to the total; tax is a dollar amount split proportionally; tip is a percent of the pre-tax subtotal, split proportionally; empty or missing shared_by means everyone; string prices; qty; discounts; largest-remainder rounding with alphabetical ties; no input mutation; the total rounds half up.

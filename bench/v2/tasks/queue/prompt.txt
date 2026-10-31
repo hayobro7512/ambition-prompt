@@ -1,0 +1,1 @@
+we're deciding whether to keep our postgres job queue or move to a real message broker. i pasted our notes below (sources.md). what should we do?

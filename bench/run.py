@@ -26,6 +26,24 @@ DEFAULT_MODELS = {  # NVIDIA free tier; from `nv.py --task chat --pick`, checked
 OA_PREFS = ["gpt-5.6-sol", "gpt-5.6", "gpt-5.6-terra", "gpt-5.5", "gpt-5.2", "gpt-5.1", "gpt-5", "o3", "gpt-4.1"]
 CTX = ssl.create_default_context(cafile="/etc/ssl/cert.pem") if os.path.exists("/etc/ssl/cert.pem") else None
 PM_DIR = os.path.join(BENCH, "optimizers", "prompt-master")
+DATA = BENCH  # where tasks/, personas/, hidden_tests/ live; v2 moves it
+CODE_TASKS = {"dedupe"}  # tasks graded by hidden tests
+ATTACH = {"churn": ["customers.csv"]}  # files appended to the prompt at execution
+RIVAL = None  # v2: (dir under optimizers/, [instruction files])
+SUITES = {"v2": dict(DATA=os.path.join(BENCH, "v2"), TASKS=["split", "abtest", "priceemail", "queue", "referral"],
+                     ARMS={"A": "raw prompt", "B": "prompt-master", "R": "rival", "D": "ambition-prompt"},
+                     N_SAMPLES=2, OPENAI_CAP=150, CODE_TASKS={"split"},
+                     ATTACH={"abtest": ["ab_results.csv"], "queue": ["sources.md"]})}
+
+
+def apply_suite(name):
+    if name in SUITES:
+        globals().update(SUITES[name])
+
+
+def dread(*p):
+    with open(os.path.join(DATA, *p)) as f:
+        return f.read()
 
 
 def read(*p):
@@ -155,7 +173,7 @@ def mock(tag, messages):
         return "mock answer: correctness matters most; use your recommendation."
     if kind == "exec":
         if tag.split("/")[1] == "dedupe":
-            code = read("hidden_tests", "reference_solution.py") if rng.random() < 0.6 else (
+            code = dread("hidden_tests", "reference_solution.py") if rng.random() < 0.6 else (
                 "def dedupe_contacts(rows):\n    seen, out = set(), []\n    for r in rows:\n"
                 "        k = (r.get('email') or '').lower()\n        if k not in seen:\n"
                 "            seen.add(k); out.append(r)\n    return out\n")
@@ -177,15 +195,14 @@ def mock(tag, messages):
 
 # ---------------------------------------------------------------- tasks and arms
 def attachment(task):
-    return "" if task == "dedupe" else "\n\n--- customers.csv ---\n" + read("tasks", "churn", "customers.csv")
+    return "".join(f"\n\n--- {n} ---\n" + dread("tasks", task, n) for n in ATTACH.get(task, []))
 
 
 def harness_note(task):
-    if task == "dedupe":
-        att = "There is no attachment."
-    else:
-        lines = read("tasks", "churn", "customers.csv").splitlines()
-        att = (f"The user's file customers.csv ({len(lines) - 1} data rows) is appended verbatim after your prompt "
+    att = "There is no attachment."
+    for n in ATTACH.get(task, []):
+        lines = dread("tasks", task, n).splitlines()
+        att = (f"The user's file {n} ({len(lines)} lines) is appended verbatim after your prompt "
                "when it is sent. Its first lines are:\n" + "\n".join(lines[:6]))
     return f"""
 
@@ -209,6 +226,9 @@ def arm_system(arm):
         return re.sub(r"<!--.*?-->\s*", "", read("optimizers", "openai_guide.md"), flags=re.S)
     if arm == "D":
         return read("..", "skills", "ambition-prompt", "SKILL.md")
+    if arm == "R":
+        d, files = RIVAL
+        return "\n\n".join(read("optimizers", d, f) for f in files)
     raise ValueError(arm)
 
 
@@ -251,10 +271,10 @@ def infeasible_hits(prompt):
 # ---------------------------------------------------------------- stages
 def stage_optimize(llm, cfg):
     for task in TASKS:
-        raw = read("tasks", task, "prompt.txt").strip()
+        raw = dread("tasks", task, "prompt.txt").strip()
         dump(os.path.join(llm.run_dir, "optimize", f"{task}_A.json"),
              {"task": task, "arm": "A", "final_prompt": raw, "qa": [], "rounds": 0, "extraction": "raw"})
-        persona = read("personas", f"{task}.md")
+        persona = dread("personas", f"{task}.md")
         for arm in "BCD":
             out = os.path.join(llm.run_dir, "optimize", f"{task}_{arm}.json")
             if os.path.exists(out):
@@ -296,21 +316,24 @@ def extract_code(text):
     return "\n\n".join(blocks) if blocks else text
 
 
-def run_hidden_tests(output):
+def run_hidden_tests(output, task="dedupe"):
     """Each test runs in its own subprocess (30s timeout) in a throwaway dir. The code is LLM-written: see README."""
-    tests_src = read("hidden_tests", "test_dedupe.py")
+    tests_src = dread("hidden_tests", f"test_{task}.py")
     names = [n.name for n in ast.parse(tests_src).body if isinstance(n, ast.FunctionDef) and n.name.startswith("test_")]
     tmp = tempfile.mkdtemp(prefix="bench_")
     try:
         with open(os.path.join(tmp, "solution.py"), "w") as f:
             f.write(extract_code(output))
-        with open(os.path.join(tmp, "test_dedupe.py"), "w") as f:
+        with open(os.path.join(tmp, f"test_{task}.py"), "w") as f:
             f.write(tests_src)
+        for n in os.listdir(os.path.join(DATA, "hidden_tests")):
+            if n.startswith("reference_") and n != "reference_solution.py":
+                shutil.copy(os.path.join(DATA, "hidden_tests", n), tmp)
         failed = []
         for n in names:
             try:
                 r = subprocess.run([sys.executable, "-I", "-c", f"import sys; sys.path.insert(0, '.'); "
-                                    f"import test_dedupe as t; t.{n}()"], cwd=tmp, capture_output=True, timeout=30)
+                                    f"import test_{task} as t; t.{n}()"], cwd=tmp, capture_output=True, timeout=30)
                 ok = r.returncode == 0
             except subprocess.TimeoutExpired:
                 ok = False
@@ -333,11 +356,11 @@ def stage_execute(llm, cfg):
                                 f"exec/{task}/{arm}/{i}", temperature=0.7)
                 rec = {"task": task, "arm": arm, "sample": i, "output": text, "chars": len(text),
                        "words": len(text.split())}
-                if task == "dedupe":
-                    rec["tests"] = run_hidden_tests(text)
+                if task in CODE_TASKS:
+                    rec["tests"] = run_hidden_tests(text, task)
                 dump(out, rec)
                 print(f"execute {task}/{arm}/{i}: {len(text)} chars"
-                      + (f", tests {rec['tests']['passed']}/{rec['tests']['total']}" if task == "dedupe" else ""))
+                      + (f", tests {rec['tests']['passed']}/{rec['tests']['total']}" if task in CODE_TASKS else ""))
 
 
 def rubric_section(name):
@@ -359,10 +382,10 @@ def parse_json(text):
 
 
 def judge_context(task):
-    ctx = (f"## Raw user prompt\n{read('tasks', task, 'prompt.txt').strip()}\n\n"
-           f"## Persona (the user's real situation; the methods did not all see it)\n{read('personas', task + '.md')}\n")
-    if task == "churn":
-        ctx += "\n## Answer key (judge only)\n" + read("tasks", "churn", "truth.md") + "\n"
+    ctx = (f"## Raw user prompt\n{dread('tasks', task, 'prompt.txt').strip()}\n\n"
+           f"## Persona (the user's real situation; the methods did not all see it)\n{dread('personas', task + '.md')}\n")
+    if os.path.exists(os.path.join(DATA, "tasks", task, "truth.md")):
+        ctx += "\n## Answer key (judge only)\n" + dread("tasks", task, "truth.md") + "\n"
     return ctx
 
 
@@ -401,7 +424,7 @@ def stage_judge(llm, cfg, seed):
     for task in TASKS:
         ctx = judge_context(task)
         prompts = {a: load(os.path.join(rd, "optimize", f"{task}_{a}.json"))["final_prompt"] for a in ARMS}
-        order = rng.sample(list(ARMS), 4)
+        order = rng.sample(list(ARMS), len(ARMS))
         schema = ('{"item_1": {"P1": 0-3, ..., "P8": 0-3, "infeasible_requirements": ["requirements a no-tool '
                   'single-shot executor cannot meet"], "note": "one sentence"}, ...}')
         user = f"{ctx}\n## Prompts to score\n{items_block(order, prompts)}\n\nReturn JSON: {schema}"
@@ -412,7 +435,7 @@ def stage_judge(llm, cfg, seed):
         outs = {(a, i): load(os.path.join(rd, "execute", f"{task}_{a}_{i}.json"))["output"]
                 for a in ARMS for i in range(N_SAMPLES)}
         for i in range(N_SAMPLES):
-            order = rng.sample(list(ARMS), 4)
+            order = rng.sample(list(ARMS), len(ARMS))
             texts = {a: outs[(a, i)] for a in ARMS}
             schema = '{"item_1": {"O1": 0-3, ..., "O6": 0-3, "note": "one sentence"}, ...}'
             user = f"{ctx}\n## Outputs to score\n{items_block(order, texts)}\n\nReturn JSON: {schema}"
@@ -421,7 +444,7 @@ def stage_judge(llm, cfg, seed):
                 for k, a in enumerate(order):
                     res["output"].append({"task": task, "arm": a, "sample": i, "judge": j,
                                           "scores": (got or {}).get(f"item_{k + 1}")})
-            for other in "BC":
+            for other in [a for a in ARMS if a not in "AD"]:
                 for d_first in (True, False):
                     x, y = ("D", other) if d_first else (other, "D")
                     user = (f"{ctx}\n## Output X\n{outs[(x, i)]}\n\n## Output Y\n{outs[(y, i)]}\n\n"
@@ -495,16 +518,16 @@ def stage_report(llm, cfg, excerpts):
     for t in TASKS:
         L += [f"## Task: {t}", "",
               "| Arm | Output score (OpenAI) | Output score (NVIDIA) | Length-controlled (OpenAI / NVIDIA) |"
-              + (" Hidden tests pass rate |" if t == "dedupe" else "")
+              + (" Hidden tests pass rate |" if t in CODE_TASKS else "")
               + " Output chars | Prompt score (OpenAI / NVIDIA) | Prompt chars | Q&A rounds |",
-              "|---|---|---|---|" + ("---|" if t == "dedupe" else "") + "---|---|---|---|"]
+              "|---|---|---|---|" + ("---|" if t in CODE_TASKS else "") + "---|---|---|---|"]
         for a in ARMS:
             row = [f"{a} {ARMS[a]}",
                    msd([O.get((t, a, i, "oa")) for i in range(N_SAMPLES)]),
                    msd([O.get((t, a, i, "nv")) for i in range(N_SAMPLES)]),
                    msd([resid.get((t, a, i, "oa")) for i in range(N_SAMPLES)], "{:+.2f}") + " / "
                    + msd([resid.get((t, a, i, "nv")) for i in range(N_SAMPLES)], "{:+.2f}")]
-            if t == "dedupe":
+            if t in CODE_TASKS:
                 row.append(msd([100 * exe[(t, a, i)]["tests"]["passed"] / exe[(t, a, i)]["tests"]["total"]
                                 for i in range(N_SAMPLES)], "{:.0f}%"))
             p_oa, p_nv = P.get((t, a, "oa")), P.get((t, a, "nv"))
@@ -513,7 +536,7 @@ def stage_report(llm, cfg, excerpts):
                     str(len(opt[(t, a)]["final_prompt"])), str(opt[(t, a)]["rounds"])]
             L.append("| " + " | ".join(row) + " |")
         L.append("")
-        if t == "dedupe":
+        if t in CODE_TASKS:
             fails = {}
             for a in ARMS:
                 for i in range(N_SAMPLES):
@@ -546,7 +569,7 @@ def stage_report(llm, cfg, excerpts):
           "D win rate = (D wins + 0.5 × ties) / comparisons. Position-consistent = same winner in both orderings.", "",
           "| Task | Pair | Judge | D wins | Ties | D losses | D win rate | Position-consistent |", "|---|---|---|---|---|---|---|---|"]
     for t in TASKS + ["all"]:
-        for other in "BC":
+        for other in [a for a in ARMS if a not in "AD"]:
             for j in ("oa", "nv"):
                 rows = [r for r in res["pair"] if (t == "all" or r["task"] == t) and r["other"] == other
                         and r["judge"] == j and r["winner"]]
@@ -581,13 +604,13 @@ def stage_report(llm, cfg, excerpts):
 
     L += ["## Verdict on headline metrics (D vs B and C; n=3, no significance test)", ""]
     for t in TASKS:
-        for other in "BC":
+        for other in [a for a in ARMS if a not in "AD"]:
             def avg(f):
                 v = [f(i) for i in range(N_SAMPLES)]
                 v = [x for x in v if x is not None]
                 return statistics.mean(v) if v else None
             parts = []
-            if t == "dedupe":
+            if t in CODE_TASKS:
                 pr = {a: avg(lambda i, a=a: exe[(t, a, i)]["tests"]["passed"] / exe[(t, a, i)]["tests"]["total"])
                       for a in ("D", other)}
                 parts.append(f"tests {100 * pr['D']:.0f}% vs {100 * pr[other]:.0f}%")
@@ -598,7 +621,7 @@ def stage_report(llm, cfg, excerpts):
             L.append(f"- {t}, D vs {other}: " + "; ".join(parts))
     L += ["", "## Raw prompts (hand-written, verbatim)", ""]
     for t in TASKS:
-        L += [f"**{t}:**", "", "```", read("tasks", t, "prompt.txt").strip(), "```", ""]
+        L += [f"**{t}:**", "", "```", dread("tasks", t, "prompt.txt").strip(), "```", ""]
 
     text = "\n".join(L)
     with open(os.path.join(rd, "RESULTS.md"), "w") as f:
@@ -629,6 +652,7 @@ def main():
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--run", help="run directory (default: new for optimize/all, latest otherwise)")
     ap.add_argument("--excerpts", action="store_true", help="print prompt/output excerpts locally (report stage)")
+    ap.add_argument("--suite", default="v1", choices=["v1", *SUITES], help="task suite (v2 = held-out, Claude-run)")
     for k, v in DEFAULT_MODELS.items():
         ap.add_argument(f"--{k.replace('_', '-')}", default=v, help=f"model id (default {v})")
     a = ap.parse_args()
@@ -646,9 +670,10 @@ def main():
     if os.path.exists(cfg_path):
         cfg = load(cfg_path)  # a run keeps the models and seed it started with
     else:
-        cfg = {k: getattr(a, k) for k in DEFAULT_MODELS} | {"seed": a.seed, "dry_run": a.dry_run,
+        cfg = {k: getattr(a, k) for k in DEFAULT_MODELS} | {"seed": a.seed, "dry_run": a.dry_run, "suite": a.suite,
                                                              "started": datetime.now().isoformat()}
         dump(cfg_path, cfg)
+    apply_suite(cfg.get("suite", "v1"))
     llm = LLM(rd, a.dry_run or cfg.get("dry_run", False))
     print(f"run dir: {rd}")
     if not llm.dry and a.stage != "report":  # fail fast on retired model ids (NVIDIA retires them often)

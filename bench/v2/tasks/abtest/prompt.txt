@@ -1,0 +1,1 @@
+attached is the export from our checkout redesign test (ab_results.csv, B is the new checkout). did it win? should we ship it?

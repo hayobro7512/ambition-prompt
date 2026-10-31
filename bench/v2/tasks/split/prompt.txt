@@ -1,0 +1,1 @@
+write a python function split_bill(items, tax, tip_percent) that splits a restaurant bill between people. items is a list like [{"name": "pizza", "price": 18.50, "shared_by": ["ana", "ben"]}]. return a dict of how much each person owes. no external libs
