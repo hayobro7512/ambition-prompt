@@ -33,4 +33,4 @@ If D loses: diagnose on the dev set (free NVIDIA pipeline, v1 tasks), make only 
 In Claude Code: follow the role definitions above (or `runs/<id>/claude/` packets), then `python3 run.py --suite v2 --run runs/<id> --stage judge` and `--stage report` with `OPENAI_API_KEY` and `NVIDIA_API_KEY` set.
 
 ## Addendum: rival choice
-(filled in from survey.md before the first run)
+Arm R = **ckelsoe/prompt-architect** v3.5.1 (MIT, 327★), commit `6c7a2c7`, file `optimizers/prompt-architect/adapters/system-prompt.md` with its 6-line usage header stripped. Chosen in `../survey.md` §4 (21 candidates): after prompt-master it is the most adopted skill-format tool that emits a rewritten prompt, it uses a different method (5-dimension scoring, intent routing to 31 frameworks, material-first questions), and it ships a self-contained system prompt. Fixed before any v2 run.

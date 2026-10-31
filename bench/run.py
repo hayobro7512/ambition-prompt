@@ -33,7 +33,8 @@ RIVAL = None  # v2: (dir under optimizers/, [instruction files])
 SUITES = {"v2": dict(DATA=os.path.join(BENCH, "v2"), TASKS=["split", "abtest", "priceemail", "queue", "referral"],
                      ARMS={"A": "raw prompt", "B": "prompt-master", "R": "rival", "D": "ambition-prompt"},
                      N_SAMPLES=2, OPENAI_CAP=150, CODE_TASKS={"split"},
-                     ATTACH={"abtest": ["ab_results.csv"], "queue": ["sources.md"]})}
+                     ATTACH={"abtest": ["ab_results.csv"], "queue": ["sources.md"]},
+                     RIVAL=("prompt-architect", ["adapters/system-prompt.md"]))}
 
 
 def apply_suite(name):
@@ -227,8 +228,8 @@ def arm_system(arm):
     if arm == "D":
         return read("..", "skills", "ambition-prompt", "SKILL.md")
     if arm == "R":
-        d, files = RIVAL
-        return "\n\n".join(read("optimizers", d, f) for f in files)
+        d, files = RIVAL  # strip each file's "how to use this file" header, as prompt-architect's adapter asks
+        return "\n\n".join(read("optimizers", d, f).split("\n---\n", 1)[-1].strip() for f in files)
     raise ValueError(arm)
 
 
