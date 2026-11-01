@@ -1,0 +1,1 @@
+attached is our monthly signup and activation export (activation.csv). we launched a new onboarding email sequence in march and activation went up about 6 points. can you confirm the impact so I can put it in the board update?

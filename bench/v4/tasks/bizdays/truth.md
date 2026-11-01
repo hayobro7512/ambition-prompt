@@ -1,0 +1,3 @@
+# Answer key (judge only)
+A correct solution: counts Mon-Fri in (start, end] (start excluded, end included), so the same day is 0 and Fri->Mon is 1; returns the negative count when end < start; skips weekday holidays inside the range only, accepting dates or ISO strings with duplicates; accepts date, datetime (date part) and strict "YYYY-MM-DD" strings, ValueError for other strings, TypeError for other types; returns int; uses week arithmetic (O(1) plus the holiday count), not a day-by-day loop. Hidden tests (19) check each point.
+Weak: inclusive of both ends without saying why; a day-by-day loop; crashing on strings; ignoring reversed ranges; changing the signature.

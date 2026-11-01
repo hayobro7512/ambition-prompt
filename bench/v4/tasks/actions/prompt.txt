@@ -1,0 +1,1 @@
+turn the meeting transcript below (transcript.md) into a list of action items. a markdown table with columns Owner, Action, Due. only include items someone actually agreed to do, not ideas or maybes. due dates as YYYY-MM-DD; write "none" if no date was set. order by due date, "none" last. after the table, one line listing open questions nobody took. nothing else.

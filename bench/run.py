@@ -45,6 +45,12 @@ SUITES = {"v2": dict(DATA=os.path.join(BENCH, "v2"), TASKS=["split", "abtest", "
                      ARMS={"A": "raw prompt", "B": "prompt-master", "R": "rival", "D": "ambition-prompt"},
                      N_SAMPLES=2, OPENAI_CAP=140, CODE_TASKS={"duration"},
                      ATTACH={"csat": ["csat.csv"], "trial": ["notes.md"], "relnotes": ["changelog.md"]},
+                     RIVAL=("prompt-architect", ["adapters/system-prompt.md"])),
+          # v4: fresh held-out set (pre-registered in v4/README.md); judge 1 is NVIDIA because OpenAI has no credits
+          "v4": dict(DATA=os.path.join(BENCH, "v4"), TASKS=["bizdays", "activation", "outage", "flags", "actions"],
+                     ARMS={"A": "raw prompt", "B": "prompt-master", "R": "rival", "D": "ambition-prompt"},
+                     N_SAMPLES=2, OPENAI_CAP=0, CODE_TASKS={"bizdays"}, JUDGE1="nvidia/nemotron-3-ultra-550b-a55b",
+                     ATTACH={"activation": ["activation.csv"], "flags": ["notes.md"], "actions": ["transcript.md"]},
                      RIVAL=("prompt-architect", ["adapters/system-prompt.md"]))}
 
 
@@ -125,12 +131,12 @@ class LLM:
             return ""
         return "".join(b.get("text", "") for b in resp["content"] if b["type"] == "text").strip()
 
-    def _http(self, provider, path, body=None):
+    def _http(self, provider, path, body=None, timeout=600, tries=5):
         key = os.environ.get("NVIDIA_API_KEY" if provider == "nv" else "OPENAI_API_KEY", "")
         if not key:
             sys.exit(f"missing {'NVIDIA_API_KEY' if provider == 'nv' else 'OPENAI_API_KEY'}")
         url = (NV_URL if provider == "nv" else OA_URL) + path
-        for attempt in range(5):
+        for attempt in range(tries):
             if provider == "oa":
                 self._oa_spend()  # every attempt counts toward the hard cap
             else:
@@ -141,15 +147,15 @@ class LLM:
             req = urllib.request.Request(url, data=json.dumps(body).encode() if body else None,
                                          headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
             try:
-                return json.load(urllib.request.urlopen(req, timeout=600, context=CTX))
+                return json.load(urllib.request.urlopen(req, timeout=timeout, context=CTX))
             except urllib.error.HTTPError as e:
                 msg = e.read().decode()[:300]
-                if e.code in (429, 500, 502, 503, 504) and attempt < 4 and not any(q in msg for q in QUOTA):
+                if e.code in (429, 500, 502, 503, 504) and attempt < tries - 1 and not any(q in msg for q in QUOTA):
                     time.sleep(5 * 2 ** attempt)
                     continue
                 raise RuntimeError(f"{provider} HTTP {e.code}: {msg}")
             except (urllib.error.URLError, TimeoutError) as e:
-                if attempt < 4:
+                if attempt < tries - 1:
                     time.sleep(5 * 2 ** attempt)
                     continue
                 raise RuntimeError(f"{provider} network error: {e}")
@@ -772,6 +778,7 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="mock every LLM call; no keys needed")
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--run", help="run directory (default: new for optimize/all, latest otherwise)")
+    ap.add_argument("--no-ping", action="store_true", help="skip the model liveness check (e.g. re-judging from cache)")
     ap.add_argument("--excerpts", action="store_true", help="print prompt/output excerpts locally (report stage)")
     ap.add_argument("--suite", default="v1", choices=["v1", *SUITES], help="task suite (v2 = held-out, Claude-run)")
     for k, v in DEFAULT_MODELS.items():
@@ -799,12 +806,13 @@ def main():
     print(f"run dir: {rd}")
     if a.stage in ("packets", "ingest"):
         return stage_packets(rd) if a.stage == "packets" else stage_ingest(rd)
-    if not llm.dry and a.stage != "report":  # fail fast on retired model ids (NVIDIA retires them often)
+    if not llm.dry and a.stage != "report" and not a.no_ping:  # fail fast on retired model ids (NVIDIA retires them often)
         gone = []  # /v1/models lists ids that still 404, so ping each one instead
         for k in [k for k in DEFAULT_MODELS if " " not in cfg[k] and prov(cfg[k]) == "nv"]:  # skip role labels, Claude ids
             try:
                 llm._http("nv", "/chat/completions", {"model": cfg[k], "max_tokens": 600,
-                                                      "messages": [{"role": "user", "content": "Reply: ok"}]})
+                                                      "messages": [{"role": "user", "content": "Reply: ok"}]},
+                          timeout=90, tries=2)
             except RuntimeError:
                 gone.append(cfg[k])
         if gone:
