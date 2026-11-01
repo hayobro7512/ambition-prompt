@@ -154,7 +154,7 @@ class LLM:
                     time.sleep(5 * 2 ** attempt)
                     continue
                 raise RuntimeError(f"{provider} HTTP {e.code}: {msg}")
-            except (urllib.error.URLError, TimeoutError) as e:
+            except (urllib.error.URLError, OSError) as e:  # URLError, timeouts, connection resets
                 if attempt < tries - 1:
                     time.sleep(5 * 2 ** attempt)
                     continue
@@ -726,7 +726,7 @@ def stage_report(llm, cfg, excerpts):
           f"{corr([exe[k]['chars'] for k in keys_o], [O.get((*k, 'oa')) for k in keys_o])}, NVIDIA "
           f"{corr([exe[k]['chars'] for k in keys_o], [O.get((*k, 'nv')) for k in keys_o])}", ""]
 
-    L += ["## Verdict on headline metrics (D vs B and C; n=3, no significance test)", ""]
+    L += [f"## Verdict on headline metrics (D vs {' and '.join(a for a in ARMS if a not in 'AD')}; n={N_SAMPLES}, no significance test)", ""]
     for t in TASKS:
         for other in [a for a in ARMS if a not in "AD"]:
             def avg(f):
