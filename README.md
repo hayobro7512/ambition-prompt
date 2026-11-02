@@ -9,7 +9,7 @@ It looks up the facts it can find, asks you only for decisions and facts that ar
 As a plugin:
 
 ```
-/plugin marketplace add <this repo>
+/plugin marketplace add hayobro7512/ambition-prompt
 /plugin install ambition-prompt@ambition-prompt
 ```
 
@@ -27,27 +27,39 @@ Use it with `/ambition-prompt <your prompt>`, or say "make this more ambitious".
 
 ## Benchmark: honest status
 
-The goal was to beat prompt-master and ckelsoe/prompt-architect on held-out tasks, with Claude running every prompt and non-Claude judges blind-scoring the results. The decision rule was fixed in advance: against each rival, a pairwise win rate of at least 0.60 and a higher mean output score on at least 3 of 5 tasks. **It beats prompt-master but not prompt-architect, so the overall claim is not supported.**
+The goal was to beat prompt-master and ckelsoe/prompt-architect on held-out tasks, with Claude running every prompt and non-Claude judges blind-scoring the results. The decision rule was fixed before each run: against each rival, a pairwise win rate of at least 0.60 and a higher mean output score on at least 3 of 5 tasks.
 
-Latest clean held-out run (v4-r1: five fresh tasks written after the last skill change, n = 2 samples per arm, Claude Sonnet 5.5 in every role, primary judge NVIDIA `nemotron-3-ultra`):
+**The latest clean run met that rule against both rivals, on its primary judge. The second judge doesn't back it up, and the margin on substance is small.** Treat it as promising, not proven.
+
+Latest run (v5-r1: five fresh tasks written after the last skill change, n = 2 samples per arm, Claude Sonnet 5.5 in every role, primary judge OpenAI `gpt-5.6-sol`):
 
 | | vs prompt-master | vs prompt-architect |
 |---|---|---|
-| Pairwise win rate (bar ≥ 0.60) | **0.62** | 0.50 |
+| Pairwise win rate (bar ≥ 0.60) | **0.82** | **0.85** |
 | Tasks with higher mean output score (bar ≥ 3 of 5) | **3** | **3** |
-| Hidden tests, coding task | 100% vs 26% | 100% vs 53% |
+| Hidden tests, coding task | 100% vs 90% | 100% vs 100% |
+| Second judge's pairwise win rate (`laguna-xs-2.1`) | 0.45 | 0.45 |
 
-- **Where it wins:** tasks where the user's unstated choices decide the result. On the coding task, both of its samples passed all 19 hidden tests; the raw prompt got 68%. On a data question with a seasonal trap, it scored 3.00 of 3, against 1.83 and 2.17 for the rivals.
-- **Where it loses:**
-  - The control task, a prompt that was already fully specified. All three optimizers scored below the raw prompt there. This skill widened the user's "open questions" line and let back in ideas the user had excluded; a preservation fix followed, but it hasn't been tested.
-  - The build-vs-buy decision memo, where prompt-architect's output was preferred.
-- **Caveats:**
-  - Both judges are free NVIDIA models from one family, because the planned OpenAI judge had no credits.
-  - Scores move by up to 0.5 on the 0–3 scale between identical runs.
-  - One author wrote both the tasks and the skill.
-  - There is no significance test.
+Read that table with these in mind:
 
-Full method, every protocol deviation and per-task results: `bench/README.md`, `bench/v2/`–`bench/v4/`. Raw model outputs stay local (NVIDIA trial terms); only aggregates are published. To reproduce, run `python3 bench/run.py --suite v4 --stage all` with `ANTHROPIC_API_KEY` and `NVIDIA_API_KEY` set (the role models and spend caps are in `bench/v4/README.md`).
+- **The second judge disagrees.** The judges picked the same winner in only 18 of 40 comparisons. The second judge chose whichever output it saw first in 30 of 40, which suggests a position effect, while the primary judge showed no such lean.
+- **On substance, the optimizers were close.** Keyword checks against the answer keys found that every arm, including the raw prompt, reached the right recommendation on the data and decision tasks. The wins mostly reflect fit to the brief. On the coding task prompt-architect tied on hidden tests and scored higher with the primary judge.
+- **It hasn't always won.** The previous clean run (v4-r1) met the rule against prompt-master but not prompt-architect (win rate 0.50). The skill was then fixed using v4's failures, so v5 tests a newer version on new tasks, and the fixes rest on that one run.
+- **The evidence is thin:** one run, two samples per arm, no significance test, and one author for both the tasks and the skill. The primary judge was swapped for an overloaded one before any scores were seen (logged as a deviation).
+
+**Where it helps most:** tasks where the user's unstated choices or facts decide the result. Against the raw prompt, it took a team announcement from placeholders to a note with the real facts, and in v4 it took a coding task from 68% to 100% of hidden tests.
+
+**Where to be careful:** prompts that are already complete. It still asks more questions than they need. In the latest run that did no harm, but earlier runs lost those tasks.
+
+Full method, every protocol deviation and per-task results: `bench/README.md`, `bench/v2/`–`bench/v5/`. Raw model outputs stay local (NVIDIA trial terms); only aggregates are published. To reproduce, run `python3 bench/run.py --suite v5 --stage all --optimizer claude-sonnet-5-5 --simuser claude-sonnet-5-5 --executor claude-sonnet-5-5 --judge-nv poolside/laguna-xs-2.1` with `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` and `NVIDIA_API_KEY` set (spend caps are in `bench/run.py`).
+
+## Beta testing
+
+Real use is the evidence this benchmark can't give, so reports are very welcome. Please [open an issue](https://github.com/hayobro7512/ambition-prompt/issues) with:
+
+- the prompt you started with, with anything private removed;
+- whether the questions helped or got in your way;
+- whether the final result beat what you'd have got without the skill, and why.
 
 ## Credits
 

@@ -25,3 +25,6 @@ Goal: held-out, blind-judged evidence that ambition-prompt beats prompt-master +
 - Open: relnotes. The security fix is still over-generalized, and the offered "left out" list pulls internal items into the output. Not fixed, to avoid fitting v3.
 - Anthropic spend $3.40 / 95 calls (cap $15 / 200). Top-level README written. Nothing pushed.
 - For a clean claim: OpenAI credits plus a fresh v4 task set written before any further skill change.
+
+## v5 (2026-11-02)
+Clean held-out run: decision rule met vs both rivals on judge 1 (gpt-5.6-sol), 0.82 and 0.85. Judge 2 doesn't corroborate it (0.45, with a lean toward the first-shown output). Next evidence should come from beta testers and outside task authors. Known weakness: still over-asks on complete prompts.
