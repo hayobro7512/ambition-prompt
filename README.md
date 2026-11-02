@@ -4,6 +4,8 @@
 
 A Claude Code skill that turns a rough prompt into a higher target with a real way to check the result. It asks only for the decisions and facts that are yours, writes the prompt as a contract, and runs it once you approve.
 
+Reach for it at the start of a project or at a turning point, when the overall scope matters most. It works at the macro level: it sets what you're aiming for, rather than editing text or making a small change.
+
 ## Install
 
 ```
@@ -16,6 +18,7 @@ Or copy `skills/ambition-prompt/` into `~/.claude/skills/`.
 ## Usage
 
 ```
+/ambition-prompt we're starting a rewrite of our billing service. plan it
 /ambition-prompt write a python function that counts business days between two dates
 /ambition-prompt attached is our support data. who should get coaching?
 /ambition-prompt write a note to my team telling them we're cancelling the project
@@ -65,6 +68,8 @@ A real example from our benchmark (Project Harbor and its team are fictional). T
 
 ## Best for
 
+**The opening prompt of a project, and important turning points.** A better scope at the start shapes everything that follows, so this is where it pays off most. Use it when you're kicking off new work, changing direction or making a big decision.
+
 **Where it scored best across our last two benchmark runs:**
 
 | Kind of work | Example tasks | Result |
@@ -73,9 +78,9 @@ A real example from our benchmark (Project Harbor and its team are fictional). T
 | **Code where edge cases decide** | Business-day counting; version comparison | Passed 100% of hidden tests on every sample in both runs |
 | **Messages built on facts only you have** | An outage email to customers; a project cancellation | Highest or tied-highest score in both runs: 2.75 of 3, against 0.17 and 0.83 for the raw prompt |
 
-**It's also built for ambitious projects.** It looks for the lasting outcome behind a task, not just the next deliverable. On long runs it tracks state in files, commits at milestones and stops to ask for missing access instead of quietly scaling the work down. It finishes by running the outside check.
+**Built for ambitious projects.** It looks for the lasting outcome behind a task, not just the next deliverable. On long runs it tracks state in files, commits at milestones and stops to ask for missing access instead of quietly scaling the work down. It finishes by running the outside check.
 
-**Use something lighter for** quick lookups and web searches, and for prompts that already say exactly what you want. Those don't need a round of questions.
+**Use something lighter for** specific edits and small changes, quick lookups and web searches, and prompts that already say exactly what you want. Those don't need a round of questions.
 
 ## Benchmark
 
