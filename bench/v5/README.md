@@ -19,9 +19,9 @@ A raw prompt · B prompt-master (vendored, MIT) · R ckelsoe/prompt-architect v3
 ## Roles
 - Optimizer, simulated user and executor: `claude-sonnet-5-5` through the Anthropic Messages API, as in v3 and v4. Up to 3 question rounds; n = 2 executor samples per (task, arm).
 - Judges, non-Claude only, same rubric (`../RUBRIC.md`), anonymized and shuffled, pairwise in both orders:
-  - **Judge 1 (primary): NVIDIA `nvidia/nemotron-3-ultra-550b-a55b`**, as in v4. OpenAI still has no credits.
+  - **Judge 1 (primary): OpenAI `gpt-5.6-sol`**, the primary judge planned since v2. It replaced NVIDIA `nvidia/nemotron-3-ultra-550b-a55b` after pre-registration and before any v5 score was seen, because nemotron kept returning overload errors (503, 504) on judging requests and the user added OpenAI credits (deviation 17 in `../README.md`).
   - Judge 2: NVIDIA `poolside/laguna-xs-2.1`. It replaces v4's `nemotron-3.5-lightning` because it comes from a different model family, so agreement between the judges means more. It is a code-focused model, and in a spot check it sometimes left a score out of its reply; such gaps are dropped, as in earlier runs. `openai/gpt-oss-20b`, `z-ai/glm-5.3-flash`, `deepseek-ai/deepseek-v4.1-flash` and `meta/llama-3.2-90b-vision-instruct` all timed out at 75 s on 2026-11-01.
-- Spend caps: Anthropic $15 in total across runs (`runs/anthropic_spend.json`; the call cap was raised to 500 at the user's request); no OpenAI calls.
+- Spend caps: Anthropic $15 in total across runs (`runs/anthropic_spend.json`; the call cap was raised to 500 at the user's request); OpenAI $5.50 and 70 calls for this run.
 
 ## Decision rule (same thresholds as v2–v4)
 ambition-prompt "beats the field" only if, against **each** of B and R, its pairwise win rate (judge 1, both orders, all tasks) is ≥ 0.60, **and** its mean judge-1 output score is higher on at least 3 of 5 tasks. A higher hidden-test pass rate on versions counts as "higher" for that task when judge-1 scores tie. Otherwise the README reports the honest result.
@@ -30,5 +30,5 @@ The repository is published after this run whatever the result, so the result ca
 
 ## Known limits
 - Same author for the tasks and the skill (see v3). The control task and the mixed task kinds limit the bias; outside task authors would be better.
-- Both judges are open models on NVIDIA's free tier, weaker than the planned OpenAI judge. v3 showed output scores moving by up to 0.5 between identical runs.
+- Judge 2 is a code-focused open model. v3 showed output scores moving by up to 0.5 between identical runs.
 - One run, n = 2: no significance test.

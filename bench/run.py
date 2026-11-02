@@ -18,7 +18,8 @@ ARMS = {"A": "raw prompt", "B": "prompt-master", "C": "OpenAI-guide", "D": "ambi
 N_SAMPLES, MAX_ROUNDS, OPENAI_CAP = 3, 3, 40
 NV_URL, OA_URL = "https://integrate.api.nvidia.com/v1", "https://api.openai.com/v1"
 AN_URL = "https://api.anthropic.com/v1"
-AN_CAP_USD, AN_CAP_CALLS = 15.0, 500  # shared across all runs: the key belongs to someone else
+AN_CAP_USD, AN_CAP_CALLS = 15.0, 500  # shared across all runs
+OA_CAP_USD, OA_USD_PER_MTOK = 5.5, (5.0, 30.0)  # per run; list price of gpt-5.6-sol, the judge's highest quoted rate
 AN_PRICE = {"claude-sonnet-5-5": (2.0, 10.0)}  # $ per 1M input / output tokens
 DEFAULT_MODELS = {  # NVIDIA free tier; from `nv.py --task chat --pick`, checked live against /v1/models on 2026-10-29
     "optimizer": "nvidia/nemotron-3-ultra-550b-a55b",
@@ -49,7 +50,7 @@ SUITES = {"v2": dict(DATA=os.path.join(BENCH, "v2"), TASKS=["split", "abtest", "
           # v4: fresh held-out set (pre-registered in v4/README.md); judge 1 is NVIDIA because OpenAI has no credits
           "v5": dict(DATA=os.path.join(BENCH, "v5"), TASKS=["versions", "handle", "cancel", "faq", "lease"],
                ARMS={"A": "raw prompt", "B": "prompt-master", "R": "rival", "D": "ambition-prompt"},
-               N_SAMPLES=2, OPENAI_CAP=0, CODE_TASKS={"versions"}, JUDGE1="nvidia/nemotron-3-ultra-550b-a55b",
+               N_SAMPLES=2, OPENAI_CAP=70, CODE_TASKS={"versions"}, JUDGE1="gpt-5.6-sol",
                ATTACH={"handle": ["handle.csv"], "faq": ["policy.md"], "lease": ["notes.md"]},
                RIVAL=("prompt-architect", ["adapters/system-prompt.md"])),
     "v4": dict(DATA=os.path.join(BENCH, "v4"), TASKS=["bizdays", "activation", "outage", "flags", "actions"],
@@ -97,10 +98,19 @@ class LLM:
         self.counter = os.path.join(run_dir, "openai_calls.json")
 
     def _oa_spend(self):
-        n = load(self.counter)["count"] if os.path.exists(self.counter) else 0
-        if n >= OPENAI_CAP:
+        c = load(self.counter) if os.path.exists(self.counter) else {"count": 0}
+        if c["count"] >= OPENAI_CAP:
             raise Budget(f"OpenAI cap of {OPENAI_CAP} calls reached")
-        dump(self.counter, {"count": n + 1, "cap": OPENAI_CAP})
+        if c.get("usd", 0) >= OA_CAP_USD:
+            raise Budget(f"OpenAI cap of ${OA_CAP_USD} reached")
+        c.update(count=c["count"] + 1, cap=OPENAI_CAP)
+        dump(self.counter, c)
+
+    def _oa_cost(self, usage):
+        c = load(self.counter)
+        c["usd"] = c.get("usd", 0) + (usage.get("prompt_tokens", 0) * OA_USD_PER_MTOK[0]
+                                      + usage.get("completion_tokens", 0) * OA_USD_PER_MTOK[1]) / 1e6
+        dump(self.counter, c)
 
     def _an_call(self, model, messages, max_tokens):
         """Anthropic Messages API. Hard cap on dollars and calls, counted from real usage, across all runs."""
@@ -204,6 +214,8 @@ class LLM:
                 if provider == "nv":
                     body["max_tokens"] = tokens
                 resp = self._http(provider, "/chat/completions", body)
+                if provider == "oa":
+                    self._oa_cost(resp.get("usage", {}))
                 content = (resp["choices"][0]["message"].get("content") or "").strip()
                 if content:
                     break
