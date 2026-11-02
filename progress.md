@@ -9,7 +9,7 @@ Goal: held-out, blind-judged evidence that ambition-prompt beats prompt-master +
 ## Steps
 - [ ] 1 Survey (bench/survey.md, 12+ skills, pick rival)
 - [ ] 2 Improve skill
-- [x] 3 Bench v2: 5 held-out tasks, pre-register commit (2a89b37); rival addendum pending
+- [x] 3 Bench v2: 5 held-out tasks, pre-register commit (fc2b2b3); rival addendum pending
 - [ ] 4 Judge
 - [ ] 5 Iterate (dev set = dedupe/churn)
 - [ ] 6 Launch prep (local)
@@ -20,7 +20,7 @@ Goal: held-out, blind-judged evidence that ambition-prompt beats prompt-master +
 
 ## 2026-10-31 v3
 - v3-r1 (clean held-out, NVIDIA judge only, OpenAI out of credits): D 0.55 vs B, 0.35 vs R; duration tests D 89%.
-- Fix round (0c93827): ask for user-only facts; keep requirement strength; harness stops calling a provider after its quota error.
+- Fix round (537bfc1): ask for user-only facts; keep requirement strength; harness stops calling a provider after its quota error.
 - v3-r2 (fix round): D 0.60 vs B and 0.60 vs R; output higher on 3/5 vs B and 2/5 vs R. Rule not met (wrong judge, and not clean).
 - Open: relnotes. The security fix is still over-generalized, and the offered "left out" list pulls internal items into the output. Not fixed, to avoid fitting v3.
 - Anthropic spend $3.40 / 95 calls (cap $15 / 200). Top-level README written. Nothing pushed.

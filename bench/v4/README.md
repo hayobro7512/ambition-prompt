@@ -1,6 +1,6 @@
 # Bench v4: fresh held-out set
 
-Pre-registered on 2026-10-31, before any v4 arm ran. v3 stopped being a clean held-out set when its failures were used to fix the skill (deviation 12 in `../README.md`). These five tasks were written after the last skill change (`9a244b7`) and are never used to tune the skill.
+Pre-registered on 2026-10-31, before any v4 arm ran. v3 stopped being a clean held-out set when its failures were used to fix the skill (deviation 12 in `../README.md`). These five tasks were written after the last skill change (`c6aa381`) and are never used to tune the skill.
 
 ## Tasks
 | Task | Kind | Objective check |
