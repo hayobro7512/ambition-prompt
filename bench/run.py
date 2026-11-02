@@ -18,7 +18,7 @@ ARMS = {"A": "raw prompt", "B": "prompt-master", "C": "OpenAI-guide", "D": "ambi
 N_SAMPLES, MAX_ROUNDS, OPENAI_CAP = 3, 3, 40
 NV_URL, OA_URL = "https://integrate.api.nvidia.com/v1", "https://api.openai.com/v1"
 AN_URL = "https://api.anthropic.com/v1"
-AN_CAP_USD, AN_CAP_CALLS = 15.0, 200  # shared across all runs: the key belongs to someone else
+AN_CAP_USD, AN_CAP_CALLS = 15.0, 500  # shared across all runs: the key belongs to someone else
 AN_PRICE = {"claude-sonnet-5-5": (2.0, 10.0)}  # $ per 1M input / output tokens
 DEFAULT_MODELS = {  # NVIDIA free tier; from `nv.py --task chat --pick`, checked live against /v1/models on 2026-10-29
     "optimizer": "nvidia/nemotron-3-ultra-550b-a55b",
@@ -47,7 +47,12 @@ SUITES = {"v2": dict(DATA=os.path.join(BENCH, "v2"), TASKS=["split", "abtest", "
                      ATTACH={"csat": ["csat.csv"], "trial": ["notes.md"], "relnotes": ["changelog.md"]},
                      RIVAL=("prompt-architect", ["adapters/system-prompt.md"])),
           # v4: fresh held-out set (pre-registered in v4/README.md); judge 1 is NVIDIA because OpenAI has no credits
-          "v4": dict(DATA=os.path.join(BENCH, "v4"), TASKS=["bizdays", "activation", "outage", "flags", "actions"],
+          "v5": dict(DATA=os.path.join(BENCH, "v5"), TASKS=["versions", "handle", "cancel", "faq", "lease"],
+               ARMS={"A": "raw prompt", "B": "prompt-master", "R": "rival", "D": "ambition-prompt"},
+               N_SAMPLES=2, OPENAI_CAP=0, CODE_TASKS={"versions"}, JUDGE1="nvidia/nemotron-3-ultra-550b-a55b",
+               ATTACH={"handle": ["handle.csv"], "faq": ["policy.md"], "lease": ["notes.md"]},
+               RIVAL=("prompt-architect", ["adapters/system-prompt.md"])),
+    "v4": dict(DATA=os.path.join(BENCH, "v4"), TASKS=["bizdays", "activation", "outage", "flags", "actions"],
                      ARMS={"A": "raw prompt", "B": "prompt-master", "R": "rival", "D": "ambition-prompt"},
                      N_SAMPLES=2, OPENAI_CAP=0, CODE_TASKS={"bizdays"}, JUDGE1="nvidia/nemotron-3-ultra-550b-a55b",
                      ATTACH={"activation": ["activation.csv"], "flags": ["notes.md"], "actions": ["transcript.md"]},

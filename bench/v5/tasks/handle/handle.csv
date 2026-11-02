@@ -1,0 +1,12 @@
+agent,ticket_type,tickets,total_handle_minutes,reopened
+Maya,password,60,361,2
+Maya,billing,90,1442,5
+Maya,integration,250,11498,20
+Jonas,password,300,2403,15
+Jonas,billing,120,2277,8
+Jonas,integration,30,1742,4
+Priti,password,260,1948,10
+Priti,billing,140,3362,31
+Priti,integration,50,2598,5
+Theo,password,18,127,1
+Theo,billing,6,121,1
