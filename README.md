@@ -45,7 +45,7 @@ Read that table with these in mind:
 - **The second judge disagrees.** The judges picked the same winner in only 18 of 40 comparisons. The second judge chose whichever output it saw first in 30 of 40, which suggests a position effect, while the primary judge showed no such lean.
 - **On substance, the optimizers were close.** Keyword checks against the answer keys found that every arm, including the raw prompt, reached the right recommendation on the data and decision tasks. The wins mostly reflect fit to the brief. On the coding task prompt-architect tied on hidden tests and scored higher with the primary judge.
 - **It hasn't always won.** The previous clean run (v4-r1) met the rule against prompt-master but not prompt-architect (win rate 0.50). The skill was then fixed using v4's failures, so v5 tests a newer version on new tasks, and the fixes rest on that one run.
-- **The evidence is thin:** one run, two samples per arm, no significance test, and one author for both the tasks and the skill. The primary judge was swapped for an overloaded one before any scores were seen (logged as a deviation).
+- **The evidence is thin:** one run, two samples per arm, no significance test, and one author for both the tasks and the skill. The primary judge replaced an overloaded NVIDIA model before any scores were seen (logged as a deviation).
 
 **Where it helps most:** tasks where the user's unstated choices or facts decide the result. Against the raw prompt, it took a team announcement from placeholders to a note with the real facts, and in v4 it took a coding task from 68% to 100% of hidden tests.
 
